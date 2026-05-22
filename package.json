@@ -1,0 +1,10 @@
+{
+  "name": "ibkr-report-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check src/parser.js && node --check src/app.js",
+    "serve": "node serve.mjs"
+  }
+}
