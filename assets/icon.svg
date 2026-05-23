@@ -1,0 +1,12 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="IBKR Statement Parser icon">
+  <rect width="512" height="512" rx="96" fill="#F4F6F1"/>
+  <rect x="96" y="72" width="236" height="324" rx="28" fill="#FFFFFF" stroke="#1E2724" stroke-width="24"/>
+  <path d="M268 72V154C268 170.569 281.431 184 298 184H332" stroke="#1E2724" stroke-width="24" stroke-linecap="round"/>
+  <path d="M142 244H250" stroke="#BBC5BE" stroke-width="22" stroke-linecap="round"/>
+  <path d="M142 300H216" stroke="#BBC5BE" stroke-width="22" stroke-linecap="round"/>
+  <path d="M142 356H192" stroke="#BBC5BE" stroke-width="22" stroke-linecap="round"/>
+  <circle cx="310" cy="318" r="78" fill="#FFFFFF" stroke="#0B6B5D" stroke-width="24"/>
+  <path d="M366 374L426 434" stroke="#0B6B5D" stroke-width="28" stroke-linecap="round"/>
+  <path d="M262 322L292 292L316 315L358 270" stroke="#0B6B5D" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="358" cy="270" r="14" fill="#B57936"/>
+</svg>
