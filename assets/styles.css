@@ -914,6 +914,44 @@ tbody tr:last-child td {
   border-bottom: 0;
 }
 
+.ticker-list {
+  width: max-content;
+  max-width: 100%;
+  min-width: 240px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.ticker-row {
+  display: grid;
+  grid-template-columns: minmax(58px, 82px) max-content;
+  gap: 24px;
+  align-items: center;
+  min-height: 52px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.ticker-row:last-child {
+  border-bottom: 0;
+}
+
+.ticker-row span:last-child {
+  justify-self: end;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.ticker-head {
+  min-height: 50px;
+  color: var(--muted);
+  background: var(--surface-soft);
+  font-weight: 760;
+}
+
 td.numeric,
 th.numeric {
   text-align: right;

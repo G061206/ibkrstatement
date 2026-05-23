@@ -865,28 +865,22 @@ function renderTickerTable(rows, currency) {
   if (!rows.length) return `<div class="empty-state">${t("noTickerContribution")}</div>`;
 
   return `
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Ticker</th>
-            <th class="numeric">${t("realized")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows
-            .slice(0, 12)
-            .map(
-              (row) => `
-                <tr>
-                  <td class="symbol-cell">${escapeHtml(row.ticker)}</td>
-                  <td class="numeric ${valueTone(row.realizedPL)}">${formatMoney(row.realizedPL, currency)}</td>
-                </tr>
-              `
-            )
-            .join("")}
-        </tbody>
-      </table>
+    <div class="ticker-list" role="table" aria-label="${t("tickerContribution")}">
+      <div class="ticker-row ticker-head" role="row">
+        <span role="columnheader">Ticker</span>
+        <span role="columnheader">${t("realized")}</span>
+      </div>
+      ${rows
+        .slice(0, 12)
+        .map(
+          (row) => `
+            <div class="ticker-row" role="row">
+              <span class="symbol-cell" role="cell">${escapeHtml(row.ticker)}</span>
+              <span class="${valueTone(row.realizedPL)}" role="cell">${formatMoney(row.realizedPL, currency)}</span>
+            </div>
+          `
+        )
+        .join("")}
     </div>
   `;
 }
