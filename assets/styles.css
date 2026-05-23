@@ -433,6 +433,107 @@ svg {
   gap: 12px;
 }
 
+.report-guide {
+  border-top: 1px solid var(--line);
+  padding-top: 4px;
+}
+
+.report-guide summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 52px;
+  color: var(--ink);
+  cursor: pointer;
+  list-style: none;
+}
+
+.report-guide summary::-webkit-details-marker {
+  display: none;
+}
+
+.report-guide summary strong,
+.report-guide summary span span {
+  display: block;
+}
+
+.report-guide summary strong {
+  font-size: 14px;
+}
+
+.report-guide summary span span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.report-guide summary svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  color: var(--muted);
+  transition: transform 150ms ease;
+}
+
+.report-guide[open] summary svg {
+  transform: rotate(180deg);
+}
+
+.guide-steps {
+  display: grid;
+  gap: 10px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: guide-step;
+}
+
+.guide-steps li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+  counter-increment: guide-step;
+}
+
+.guide-steps li::before {
+  content: counter(guide-step);
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(11, 107, 93, 0.22);
+  border-radius: 999px;
+  color: var(--green-strong);
+  background: var(--green-soft);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.guide-note {
+  margin: 12px 0 0;
+  color: var(--faint);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.guide-link {
+  display: inline-flex;
+  margin-top: 10px;
+  color: var(--green-strong);
+  font-size: 13px;
+  font-weight: 760;
+  text-decoration: none;
+}
+
+.guide-link:hover {
+  text-decoration: underline;
+}
+
 .file-name {
   min-width: 0;
   overflow: hidden;

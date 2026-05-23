@@ -23,6 +23,17 @@ const translations = {
     pasteLabel: "粘贴 CSV 内容",
     noFile: "尚未选择文件",
     parse: "解析",
+    guideTitle: "如何获取报表",
+    guideSubtitle: "从 IBKR Client Portal 导出 Activity Statement CSV",
+    guideNote: "如果使用 Flex Queries，请选择 CSV 或 Text 格式，并确保包含 Net Asset Value、Open Positions、Trades、Realized & Unrealized Performance Summary 等区块。",
+    guideSource: "IBKR 官方说明",
+    guideSteps: [
+      "登录 IBKR Client Portal。",
+      "进入顶部菜单 Performance & Reports，打开 Statements。",
+      "在默认报表或 Activity Statement 旁点击 Run 按钮。",
+      "选择账户、日期范围、Format = CSV，语言按需要选择。",
+      "生成并下载报表文件，然后回到这里上传或粘贴 CSV 内容。"
+    ],
     fileReadError: "读取文件失败，请重新选择报表。",
     emptyContent: "没有可解析的内容。",
     noSections: "没有识别到 IBKR CSV 区块。",
@@ -136,6 +147,17 @@ const translations = {
     pasteLabel: "Paste CSV content",
     noFile: "No file selected",
     parse: "Parse",
+    guideTitle: "How to get the report",
+    guideSubtitle: "Export an Activity Statement CSV from IBKR Client Portal",
+    guideNote: "If you use Flex Queries, choose CSV or Text format and include sections such as Net Asset Value, Open Positions, Trades, and Realized & Unrealized Performance Summary.",
+    guideSource: "IBKR official guide",
+    guideSteps: [
+      "Log in to IBKR Client Portal.",
+      "Open Performance & Reports from the top menu, then go to Statements.",
+      "Click the Run button next to a default statement or Activity Statement.",
+      "Choose the account, date range, Format = CSV, and your preferred language.",
+      "Generate and download the report file, then upload it here or paste the CSV content."
+    ],
     fileReadError: "Could not read the file. Please choose the statement again.",
     emptyContent: "There is no content to parse.",
     noSections: "No IBKR CSV sections were recognized.",
@@ -327,11 +349,37 @@ function renderUpload(errorMessage = "") {
             <span>${t("parse")}</span>
           </button>
         </div>
+        ${renderReportGuide()}
       </div>
     </section>
   `;
 
   bindUploadEvents();
+}
+
+function renderReportGuide() {
+  const steps = translations[currentLanguage]?.guideSteps || translations.zh.guideSteps;
+
+  return `
+    <details class="report-guide">
+      <summary>
+        <span>
+          <strong>${t("guideTitle")}</strong>
+          <span>${t("guideSubtitle")}</span>
+        </span>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </summary>
+      <ol class="guide-steps">
+        ${steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}
+      </ol>
+      <p class="guide-note">${escapeHtml(t("guideNote"))}</p>
+      <a class="guide-link" href="https://www.interactivebrokers.com/campus/trading-lessons/client-portal-reporting/" target="_blank" rel="noopener noreferrer">
+        ${escapeHtml(t("guideSource"))}
+      </a>
+    </details>
+  `;
 }
 
 function bindUploadEvents() {
