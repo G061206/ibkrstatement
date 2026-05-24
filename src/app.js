@@ -1,3 +1,5 @@
+import { decodeReportFile } from "./encoding.js";
+import { isChineseIbkrReport } from "./reportLanguage.js";
 import { parseIbkrReport } from "./parser.js";
 
 const app = document.querySelector("#app");
@@ -10,6 +12,8 @@ let currentData = null;
 let activeTab = "overview";
 let currentLanguage = localStorage.getItem("ibkr-report-language") || "zh";
 let currentTheme = localStorage.getItem("ibkr-report-theme") === "dark" ? "dark" : "light";
+let shareImageFormat = "landscape";
+let shareLogoImagePromise = null;
 
 const translations = {
   zh: {
@@ -39,6 +43,7 @@ const translations = {
     ],
     fileReadError: "读取文件失败，请重新选择报表。",
     emptyContent: "没有可解析的内容。",
+    chineseReportWarning: "检测到这份报表可能是中文导出。当前解析器只支持英文 IBKR Activity Statement CSV。请在 IBKR 导出时将 Language 设为 English 后重新上传。",
     noSections: "没有识别到 IBKR CSV 区块。",
     parseFailed: "解析失败。",
     loadingEyebrow: "Parsing",
@@ -50,6 +55,17 @@ const translations = {
     accountView: "账户视图",
     sections: "sections",
     exportJson: "导出 JSON",
+    shareImage: "分享图",
+    shareImageTitle: "生成社交分享图",
+    shareLandscape: "横版",
+    sharePortrait: "竖版",
+    sharePreview: "分享图预览",
+    downloadPng: "下载 PNG",
+    close: "关闭",
+    generatedOn: "生成于",
+    topContributors: "贡献排行",
+    monthlyTrend: "月度趋势",
+    positionsCount: "持仓数",
     replaceFile: "更换文件",
     tabOverview: "总览",
     tabPositions: "持仓",
@@ -170,6 +186,7 @@ const translations = {
     ],
     fileReadError: "Could not read the file. Please choose the statement again.",
     emptyContent: "There is no content to parse.",
+    chineseReportWarning: "This looks like a Chinese IBKR statement. The parser currently supports English IBKR Activity Statement CSV files only. Export it again with Language = English, then upload it.",
     noSections: "No IBKR CSV sections were recognized.",
     parseFailed: "Parsing failed.",
     loadingEyebrow: "Parsing",
@@ -181,6 +198,17 @@ const translations = {
     accountView: "Account view",
     sections: "sections",
     exportJson: "Export JSON",
+    shareImage: "Share image",
+    shareImageTitle: "Generate social share image",
+    shareLandscape: "Landscape",
+    sharePortrait: "Portrait",
+    sharePreview: "Share image preview",
+    downloadPng: "Download PNG",
+    close: "Close",
+    generatedOn: "Generated on",
+    topContributors: "Top contributors",
+    monthlyTrend: "Monthly trend",
+    positionsCount: "Positions",
     replaceFile: "Replace file",
     tabOverview: "Overview",
     tabPositions: "Positions",
@@ -281,10 +309,21 @@ const icons = {
   file: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3v5a2 2 0 0 0 2 2h5"/><path d="M7 3h8l6 6v12H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4Z"/></svg>`,
   parse: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/><path d="M4 20h16"/></svg>`,
   download: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>`,
+  share: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M17 14a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M7 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="m9.7 7.1 4.6 2.8"/><path d="m14.3 14.1-4.6 2.8"/></svg>`,
+  close: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`,
   search: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35"/><circle cx="11" cy="11" r="7"/></svg>`,
   alert: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.8 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0Z"/></svg>`,
   refresh: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.35-5.65"/><path d="M4 4v5h5"/></svg>`
 };
+
+const SHARE_IMAGE_SIZES = {
+  landscape: { width: 1200, height: 630 },
+  portrait: { width: 1080, height: 1728 }
+};
+
+const SHARE_LOGO_SRC = "./assets/ibkr-logo.svg";
+const SHARE_IMAGE_COLORS = ["#e31937", "#5f6368", "#a41124", "#2b2f35", "#f15b61", "#878d96"];
+const SHARE_IMAGE_FONT = 'Inter, "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif';
 
 bindLanguageSwitcher();
 bindThemeToggle();
@@ -328,6 +367,11 @@ function bindThemeToggle() {
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
   updateThemeToggle();
+
+  const shareModal = document.querySelector("#shareImageModal");
+  if (shareModal && !shareModal.classList.contains("hidden")) {
+    void renderShareImagePreview();
+  }
 }
 
 function updateThemeToggle() {
@@ -355,6 +399,7 @@ function updateLanguageChrome() {
 
 function renderUpload(errorMessage = "") {
   resetButton.classList.add("hidden");
+  document.body.classList.remove("is-modal-open");
   document.title = "IBKR Report Studio";
   app.innerHTML = `
     <section class="upload-stage">
@@ -465,14 +510,28 @@ function bindUploadEvents() {
 
 function readFile(file) {
   const reader = new FileReader();
-  reader.onload = () => parseText(String(reader.result || ""), file.name);
+  reader.onload = () => {
+    try {
+      const { text } = decodeReportFile(reader.result);
+      parseText(text, file.name);
+    } catch {
+      renderUpload(t("fileReadError"));
+    }
+  };
   reader.onerror = () => renderUpload(t("fileReadError"));
-  reader.readAsText(file, "utf-8");
+  reader.readAsArrayBuffer(file);
 }
 
 function parseText(text, sourceName) {
   if (!text.trim()) {
     renderUpload(t("emptyContent"));
+    return;
+  }
+
+  if (isChineseIbkrReport(text)) {
+    const warning = t("chineseReportWarning");
+    window.alert(warning);
+    renderUpload(warning);
     return;
   }
 
@@ -532,6 +591,7 @@ function renderDashboard() {
       <div class="panel ${activeTab === "data" ? "is-active" : ""}" data-panel="data">
         ${renderDataQuality(currentData)}
       </div>
+      ${renderShareImageDialog()}
       <p class="footer-note">${t("footerNote")}</p>
     </section>
   `;
@@ -556,6 +616,10 @@ function renderWorkspaceHeader(data) {
         </div>
       </div>
       <div class="workspace-actions">
+        <button class="quiet-button" id="shareImageButton" type="button">
+          ${icons.share}
+          <span>${t("shareImage")}</span>
+        </button>
         <button class="quiet-button" id="downloadJsonButton" type="button">
           ${icons.download}
           <span>${t("exportJson")}</span>
@@ -564,6 +628,42 @@ function renderWorkspaceHeader(data) {
           ${icons.refresh}
           <span>${t("replaceFile")}</span>
         </button>
+      </div>
+    </div>
+  `;
+}
+
+function renderShareImageDialog() {
+  return `
+    <div class="share-modal hidden" id="shareImageModal" role="dialog" aria-modal="true" aria-labelledby="shareImageTitle">
+      <button class="share-modal-backdrop" type="button" data-share-close aria-label="${t("close")}"></button>
+      <div class="share-modal-panel">
+        <div class="share-modal-header">
+          <div>
+            <h2 id="shareImageTitle">${t("shareImageTitle")}</h2>
+            <p>${t("sharePreview")}</p>
+          </div>
+          <button class="icon-button" type="button" data-share-close aria-label="${t("close")}">
+            ${icons.close}
+          </button>
+        </div>
+        <div class="share-modal-toolbar">
+          <div class="share-format-switch" role="group" aria-label="${t("shareImage")}">
+            <button class="share-format-button ${shareImageFormat === "landscape" ? "is-active" : ""}" type="button" data-share-format="landscape">
+              ${t("shareLandscape")}
+            </button>
+            <button class="share-format-button ${shareImageFormat === "portrait" ? "is-active" : ""}" type="button" data-share-format="portrait">
+              ${t("sharePortrait")}
+            </button>
+          </div>
+          <button class="primary-button" id="downloadShareImageButton" type="button">
+            ${icons.download}
+            <span>${t("downloadPng")}</span>
+          </button>
+        </div>
+        <div class="share-preview-frame">
+          <canvas id="shareImageCanvas" width="1200" height="630" aria-label="${t("sharePreview")}"></canvas>
+        </div>
       </div>
     </div>
   `;
@@ -1300,8 +1400,30 @@ function bindDashboardEvents() {
     downloadJson(currentData);
   });
 
+  document.querySelector("#shareImageButton")?.addEventListener("click", () => {
+    openShareImageDialog();
+  });
+
+  document.querySelectorAll("[data-share-close]").forEach((button) => {
+    button.addEventListener("click", () => {
+      closeShareImageDialog();
+    });
+  });
+
+  document.querySelectorAll("[data-share-format]").forEach((button) => {
+    button.addEventListener("click", () => {
+      shareImageFormat = button.dataset.shareFormat || "landscape";
+      void renderShareImagePreview();
+    });
+  });
+
+  document.querySelector("#downloadShareImageButton")?.addEventListener("click", () => {
+    void downloadShareImage();
+  });
+
   document.querySelector("#replaceFileButton")?.addEventListener("click", () => {
     currentData = null;
+    closeShareImageDialog();
     renderUpload();
   });
 
@@ -1375,6 +1497,597 @@ function displayWarning(warning) {
   return warnings[warning] || warning;
 }
 
+function openShareImageDialog() {
+  const modal = document.querySelector("#shareImageModal");
+  if (!modal || !currentData) return;
+
+  modal.classList.remove("hidden");
+  document.body.classList.add("is-modal-open");
+  void renderShareImagePreview();
+  document.querySelector("#downloadShareImageButton")?.focus();
+}
+
+function closeShareImageDialog() {
+  document.querySelector("#shareImageModal")?.classList.add("hidden");
+  document.body.classList.remove("is-modal-open");
+}
+
+async function renderShareImagePreview() {
+  const canvas = document.querySelector("#shareImageCanvas");
+  if (!canvas || !currentData) return;
+
+  const size = SHARE_IMAGE_SIZES[shareImageFormat] || SHARE_IMAGE_SIZES.landscape;
+  canvas.width = size.width;
+  canvas.height = size.height;
+  canvas.classList.toggle("is-portrait", shareImageFormat === "portrait");
+
+  document.querySelectorAll("[data-share-format]").forEach((button) => {
+    const isActive = button.dataset.shareFormat === shareImageFormat;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+
+  await drawShareImage(canvas, currentData, shareImageFormat);
+}
+
+async function downloadShareImage() {
+  const canvas = document.querySelector("#shareImageCanvas");
+  if (!canvas || !currentData) return;
+
+  await renderShareImagePreview();
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+
+    const safeAccount = (currentData.accountInfo.account || "ibkr").replace(/[^\w.-]+/g, "_");
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${safeAccount}-share-${shareImageFormat}.png`;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }, "image/png");
+}
+
+async function drawShareImage(canvas, data, format) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const theme = getShareImageTheme();
+  const model = buildShareImageModel(data);
+  const logoImage = await loadShareLogoImage();
+  drawShareBackground(ctx, canvas.width, canvas.height, theme);
+
+  if (format === "portrait") {
+    drawPortraitShareImage(ctx, model, theme, logoImage);
+  } else {
+    drawLandscapeShareImage(ctx, model, theme, logoImage);
+  }
+}
+
+function loadShareLogoImage() {
+  if (shareLogoImagePromise) return shareLogoImagePromise;
+
+  shareLogoImagePromise = new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = SHARE_LOGO_SRC;
+  });
+
+  return shareLogoImagePromise;
+}
+
+function getShareImageTheme() {
+  return {
+    bg: "#08090b",
+    panel: "#111317",
+    panelSoft: "#181b20",
+    ink: "#f7f7f4",
+    muted: "#b7bcc4",
+    faint: "#747b86",
+    line: "#282c33",
+    lineStrong: "#3d424c",
+    brand: "#e31937",
+    brandStrong: "#ff304b",
+    brandSoft: "#2a0d14",
+    positive: "#36d399",
+    negative: "#ff7a83",
+    shadow: "rgba(0,0,0,0.48)",
+    grid: "rgba(255,255,255,0.045)"
+  };
+}
+
+function buildShareImageModel(data) {
+  const totalPl = data.plSummary.total;
+  const allocation = buildPortfolioAllocation(data);
+  const monthlyRows = data.monthlySummary.slice(-6);
+  const tickerRows = data.tickerPL.slice(0, 5);
+
+  return {
+    name: data.accountInfo.name || t("accountView"),
+    account: data.accountInfo.account ? maskAccount(data.accountInfo.account) : t("unknownAccount"),
+    period: data.accountInfo.period || t("unknownPeriod"),
+    currency: data.baseCurrency,
+    generatedDate: new Intl.DateTimeFormat(numberLocale(), {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).format(new Date()),
+    nav: data.nav.total,
+    cash: data.nav.cash,
+    totalPl: totalPl.total,
+    realizedPl: totalPl.realized,
+    unrealizedPl: totalPl.unrealized,
+    twr: data.nav.rateOfReturn,
+    positions: data.positions.length,
+    sections: Object.keys(data.sectionStats).length,
+    allocation,
+    monthlyRows,
+    tickerRows
+  };
+}
+
+function drawLandscapeShareImage(ctx, model, theme, logoImage) {
+  drawShareBrand(ctx, model, theme, logoImage, 60, 44, 1080);
+  drawShareTopReturn(ctx, model, theme, 650, 84, 330, { size: 86 });
+  drawShareText(ctx, model.name, 60, 106, {
+    size: 48,
+    weight: 820,
+    color: theme.ink,
+    maxWidth: 650
+  });
+
+  let pillX = 60;
+  pillX += drawSharePill(ctx, model.account, pillX, 162, theme) + 10;
+  pillX += drawSharePill(ctx, model.period, pillX, 162, theme) + 10;
+  drawSharePill(ctx, `${model.currency} Base`, pillX, 162, theme, { tone: "brand" });
+
+  drawShareHero(ctx, 60, 210, 440, 185, model, theme, { valueOffsetY: 66 });
+  drawShareMetric(ctx, 520, 210, 230, 84, t("totalPL"), formatMoney(model.totalPl, model.currency), model.totalPl, theme);
+  drawShareMetric(ctx, 520, 310, 230, 85, t("positionsCount"), formatNumber(model.positions), model.positions, theme);
+  drawShareAllocation(ctx, 770, 210, 370, 185, model, theme);
+  drawShareMonthlyTrend(ctx, 60, 420, 530, 150, model, theme);
+  drawShareTickerList(ctx, 610, 420, 530, 150, model, theme);
+  drawShareFooter(ctx, model, 60, 590, 1080, theme);
+}
+
+function drawPortraitShareImage(ctx, model, theme, logoImage) {
+  drawShareBrand(ctx, model, theme, logoImage, 70, 92, 940);
+  drawShareText(ctx, model.name, 70, 174, {
+    size: 74,
+    weight: 830,
+    color: theme.ink,
+    maxWidth: 640
+  });
+  drawShareTopReturn(ctx, model, theme, 505, 270, 490);
+
+  drawSharePill(ctx, model.account, 70, 288, theme, { scale: 1.18 });
+  drawSharePill(ctx, model.period, 70, 346, theme, { scale: 1.18 });
+
+  drawShareHero(ctx, 70, 435, 940, 220, model, theme, { scale: 1.28 });
+  drawShareMetric(ctx, 70, 685, 455, 112, t("totalPL"), formatMoney(model.totalPl, model.currency), model.totalPl, theme, { scale: 1.12 });
+  drawShareMetric(ctx, 555, 685, 455, 112, t("unrealizedPL"), formatMoney(model.unrealizedPl, model.currency), model.unrealizedPl, theme, { scale: 1.12 });
+  drawShareMetric(ctx, 70, 820, 455, 112, t("realized"), formatMoney(model.realizedPl, model.currency), model.realizedPl, theme, { scale: 1.12 });
+  drawShareMetric(ctx, 555, 820, 455, 112, t("positionsCount"), formatNumber(model.positions), model.positions, theme, { scale: 1.12 });
+  drawShareAllocation(ctx, 70, 970, 940, 285, model, theme, { scale: 1.18 });
+  drawShareTickerList(ctx, 70, 1295, 940, 350, model, theme, { rowHeight: 50, scale: 1.18 });
+  drawShareFooter(ctx, model, 70, 1684, 940, theme, { scale: 1.12 });
+}
+
+function drawShareBackground(ctx, width, height, theme) {
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = theme.bg;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.save();
+  ctx.strokeStyle = theme.grid;
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= width; x += 72) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= height; y += 72) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.fillStyle = theme.brandSoft;
+  ctx.globalAlpha = 0.9;
+  ctx.beginPath();
+  ctx.moveTo(width - 300, 0);
+  ctx.lineTo(width, 0);
+  ctx.lineTo(width, 215);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = theme.brand;
+  ctx.globalAlpha = 0.78;
+  ctx.beginPath();
+  ctx.moveTo(width - 180, 0);
+  ctx.lineTo(width - 118, 0);
+  ctx.lineTo(width, 118);
+  ctx.lineTo(width, 180);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawShareBrand(ctx, model, theme, logoImage, x, y, width) {
+  drawShareLogoMark(ctx, logoImage, x, y - 16, 82, theme);
+  drawShareText(ctx, "IBKR Report Studio", x + 102, y + 8, {
+    size: 24,
+    weight: 820,
+    color: theme.ink
+  });
+}
+
+function drawShareHero(ctx, x, y, width, height, model, theme, options = {}) {
+  const scale = options.scale || 1;
+  drawSharePanel(ctx, x, y, width, height, theme);
+  drawShareText(ctx, t("endingNav"), x + 28, y + 26, {
+    size: 20 * scale,
+    weight: 740,
+    color: theme.muted,
+    maxWidth: width - 56
+  });
+  const valueY = y + (options.valueOffsetY ?? 78);
+  drawShareText(ctx, formatMoney(model.nav, model.currency), x + 28, valueY, {
+    size: 50 * scale,
+    weight: 850,
+    color: theme.ink,
+    maxWidth: width - 56
+  });
+  drawShareText(ctx, `${t("cash")} ${formatMoney(model.cash, model.currency)}`, x + 28, y + height - 54, {
+    size: 18 * scale,
+    weight: 700,
+    color: theme.muted,
+    maxWidth: width - 56
+  });
+  drawShareText(ctx, `${t("sections")} ${formatNumber(model.sections)}`, x + width - 28, y + height - 54, {
+    size: 18 * scale,
+    weight: 700,
+    color: theme.faint,
+    align: "right"
+  });
+}
+
+function drawShareTopReturn(ctx, model, theme, x, y, width, options = {}) {
+  const size = options.size || 126;
+  ctx.save();
+  drawShareText(ctx, formatSignedPercent(model.twr, 1), x + width, y + 8, {
+    size,
+    weight: 860,
+    color: shareValueColor(model.twr, theme),
+    align: "right"
+  });
+  ctx.restore();
+}
+
+function drawShareMetric(ctx, x, y, width, height, label, value, tone, theme, options = {}) {
+  const scale = options.scale || 1;
+  drawSharePanel(ctx, x, y, width, height, theme, { soft: true });
+  drawShareText(ctx, label, x + 22, y + 20, {
+    size: 17 * scale,
+    weight: 740,
+    color: theme.muted,
+    maxWidth: width - 44
+  });
+  drawShareText(ctx, value, x + 22, y + 50 * scale, {
+    size: 26 * scale,
+    weight: 840,
+    color: shareValueColor(tone, theme),
+    maxWidth: width - 44
+  });
+}
+
+function drawShareAllocation(ctx, x, y, width, height, model, theme, options = {}) {
+  const scale = options.scale || 1;
+  const rows = model.allocation.slice(0, width > 500 ? 5 : 4);
+  drawSharePanel(ctx, x, y, width, height, theme);
+  drawShareText(ctx, t("assetAllocation"), x + 24, y + 22, {
+    size: 19 * scale,
+    weight: 800,
+    color: theme.ink,
+    maxWidth: width - 48
+  });
+
+  if (!rows.length) {
+    drawShareText(ctx, t("noPositionMarketValue"), x + 24, y + 70, {
+      size: 18 * scale,
+      weight: 650,
+      color: theme.muted,
+      maxWidth: width - 48
+    });
+    return;
+  }
+
+  const donutRadius = Math.min(width > 500 ? 94 : 58, height * 0.28);
+  const donutX = x + (width > 500 ? 150 : 88);
+  const donutY = y + height / 2 + 18;
+  const lineWidth = Math.max(16, donutRadius * 0.34);
+  let start = -Math.PI / 2;
+
+  ctx.save();
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = "butt";
+  for (const [index, row] of rows.entries()) {
+    const end = start + Math.PI * 2 * row.weight;
+    ctx.beginPath();
+    ctx.strokeStyle = SHARE_IMAGE_COLORS[index % SHARE_IMAGE_COLORS.length];
+    ctx.arc(donutX, donutY, donutRadius, start, end);
+    ctx.stroke();
+    start = end;
+  }
+  ctx.restore();
+
+  drawShareText(ctx, "100%", donutX, donutY - 14 * scale, {
+    size: 24 * scale,
+    weight: 850,
+    color: theme.ink,
+    align: "center"
+  });
+
+  const legendX = x + (width > 500 ? 300 : 160);
+  const legendY = y + 66;
+  const legendGap = width > 500 ? 42 : 31;
+  rows.forEach((row, index) => {
+    const rowY = legendY + index * legendGap;
+    ctx.fillStyle = SHARE_IMAGE_COLORS[index % SHARE_IMAGE_COLORS.length];
+    drawRoundedPath(ctx, legendX, rowY + 2, 14 * scale, 14 * scale, 4);
+    ctx.fill();
+    drawShareText(ctx, displayGroupName(row.name), legendX + 24 * scale, rowY, {
+      size: 16 * scale,
+      weight: 740,
+      color: theme.ink,
+      maxWidth: width - (legendX - x) - 92
+    });
+    drawShareText(ctx, formatPercent(row.weight * 100), x + width - 24, rowY, {
+      size: 16 * scale,
+      weight: 780,
+      color: theme.muted,
+      align: "right"
+    });
+  });
+}
+
+function drawShareTickerList(ctx, x, y, width, height, model, theme, options = {}) {
+  const scale = options.scale || 1;
+  const rows = model.tickerRows.slice(0, Math.max(3, Math.floor((height - 58) / (28 * scale))));
+  const maxAbs = Math.max(...rows.map((row) => Math.abs(row.realizedPL)), 1);
+
+  drawSharePanel(ctx, x, y, width, height, theme);
+  drawShareText(ctx, t("topContributors"), x + 24, y + 22, {
+    size: 19 * scale,
+    weight: 800,
+    color: theme.ink,
+    maxWidth: width - 48
+  });
+
+  if (!rows.length) {
+    drawShareText(ctx, t("noTickerContribution"), x + 24, y + 70, {
+      size: 17 * scale,
+      weight: 650,
+      color: theme.muted,
+      maxWidth: width - 48
+    });
+    return;
+  }
+
+  const rowHeight = options.rowHeight || 28 * scale;
+  rows.forEach((row, index) => {
+    const rowY = y + 62 + index * rowHeight;
+    const amount = formatMoney(row.realizedPL, model.currency);
+    drawShareText(ctx, String(index + 1).padStart(2, "0"), x + 24, rowY + 6 * scale, {
+      size: 14 * scale,
+      weight: 800,
+      color: theme.faint
+    });
+    drawShareText(ctx, row.ticker, x + 58 * scale, rowY, {
+      size: 17 * scale,
+      weight: 820,
+      color: theme.ink,
+      maxWidth: width * 0.28
+    });
+    drawShareText(ctx, amount, x + width - 24, rowY, {
+      size: 17 * scale,
+      weight: 800,
+      color: shareValueColor(row.realizedPL, theme),
+      align: "right",
+      maxWidth: width * 0.36
+    });
+
+    const trackX = x + 58 * scale;
+    const trackY = rowY + 20 * scale;
+    const trackW = width - (trackX - x) - 24;
+    ctx.fillStyle = theme.line;
+    drawRoundedPath(ctx, trackX, trackY, trackW, 4 * scale, 6);
+    ctx.fill();
+    ctx.fillStyle = shareValueColor(row.realizedPL, theme);
+    drawRoundedPath(ctx, trackX, trackY, Math.max(6, trackW * (Math.abs(row.realizedPL) / maxAbs)), 4 * scale, 6);
+    ctx.fill();
+  });
+}
+
+function drawShareMonthlyTrend(ctx, x, y, width, height, model, theme, options = {}) {
+  const scale = options.scale || 1;
+  const rows = model.monthlyRows;
+  drawSharePanel(ctx, x, y, width, height, theme);
+  drawShareText(ctx, t("monthlyTrend"), x + 24, y + 20, {
+    size: 19 * scale,
+    weight: 800,
+    color: theme.ink,
+    maxWidth: width - 48
+  });
+
+  if (!rows.length) {
+    drawShareText(ctx, t("noMonthlyData"), x + 24, y + 66, {
+      size: 17 * scale,
+      weight: 650,
+      color: theme.muted,
+      maxWidth: width - 48
+    });
+    return;
+  }
+
+  const chartX = x + 30;
+  const chartY = y + 58;
+  const chartW = width - 60;
+  const chartH = height - 88;
+  const baseline = chartY + chartH / 2;
+  const maxAbs = Math.max(...rows.map((row) => Math.abs(row.net)), 1);
+  const slot = chartW / rows.length;
+
+  ctx.strokeStyle = theme.lineStrong;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(chartX, baseline);
+  ctx.lineTo(chartX + chartW, baseline);
+  ctx.stroke();
+
+  rows.forEach((row, index) => {
+    const barW = Math.max(18, slot * 0.52);
+    const barH = Math.max(3, (Math.abs(row.net) / maxAbs) * (chartH / 2 - 8));
+    const barX = chartX + slot * index + (slot - barW) / 2;
+    const barY = row.net >= 0 ? baseline - barH : baseline;
+    ctx.fillStyle = shareValueColor(row.net, theme);
+    drawRoundedPath(ctx, barX, barY, barW, barH, 6);
+    ctx.fill();
+    drawShareText(ctx, row.month.slice(5), barX + barW / 2, chartY + chartH + 8, {
+      size: 13 * scale,
+      weight: 740,
+      color: theme.faint,
+      align: "center"
+    });
+  });
+}
+
+function drawShareFooter(ctx, model, x, y, width, theme, options = {}) {
+  const scale = options.scale || 1;
+  drawShareText(ctx, t("eyebrow"), x, y, {
+    size: 17 * scale,
+    weight: 720,
+    color: theme.faint,
+    maxWidth: width * 0.6
+  });
+  drawShareText(ctx, `${t("generatedOn")} ${model.generatedDate}`, x + width, y, {
+    size: 17 * scale,
+    weight: 720,
+    color: theme.faint,
+    align: "right"
+  });
+}
+
+function drawSharePanel(ctx, x, y, width, height, theme, options = {}) {
+  ctx.save();
+  if (options.shadow !== false) {
+    ctx.shadowColor = theme.shadow;
+    ctx.shadowBlur = 28;
+    ctx.shadowOffsetY = 14;
+  }
+  ctx.fillStyle = options.soft ? theme.panelSoft : theme.panel;
+  drawRoundedPath(ctx, x, y, width, height, 20);
+  ctx.fill();
+  ctx.shadowColor = "transparent";
+  ctx.strokeStyle = theme.line;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawSharePill(ctx, text, x, y, theme, options = {}) {
+  const scale = options.scale || 1;
+  const size = 17 * scale;
+  const isBrand = options.tone === "brand";
+  ctx.save();
+  ctx.font = `760 ${size}px ${SHARE_IMAGE_FONT}`;
+  const width = Math.min(420 * scale, ctx.measureText(text).width + 30 * scale);
+  ctx.fillStyle = isBrand ? theme.brandSoft : theme.panelSoft;
+  drawRoundedPath(ctx, x, y, width, 34 * scale, 10);
+  ctx.fill();
+  ctx.strokeStyle = isBrand ? theme.brand : theme.lineStrong;
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+  ctx.restore();
+  drawShareText(ctx, text, x + 15 * scale, y + 8 * scale, {
+    size,
+    weight: 760,
+    color: isBrand ? theme.brandStrong : theme.muted,
+    maxWidth: width - 30 * scale
+  });
+  return width;
+}
+
+function drawShareLogoMark(ctx, logoImage, x, y, size, theme) {
+  ctx.save();
+  drawRoundedPath(ctx, x, y, size, size, size * 0.1);
+  ctx.clip();
+
+  if (logoImage) {
+    ctx.drawImage(logoImage, x, y, size, size);
+  } else {
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(x, y, size, size);
+  }
+
+  ctx.restore();
+}
+
+function drawShareText(ctx, text, x, y, options = {}) {
+  const size = options.size || 18;
+  const weight = options.weight || 650;
+  ctx.save();
+  ctx.font = `${weight} ${size}px ${SHARE_IMAGE_FONT}`;
+  ctx.fillStyle = options.color || "#000000";
+  ctx.textAlign = options.align || "left";
+  ctx.textBaseline = options.baseline || "top";
+  const value = options.maxWidth ? fitCanvasText(ctx, String(text ?? ""), options.maxWidth) : String(text ?? "");
+  ctx.fillText(value, x, y);
+  ctx.restore();
+}
+
+function fitCanvasText(ctx, text, maxWidth) {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  let output = text;
+  while (output.length > 1 && ctx.measureText(`${output}...`).width > maxWidth) {
+    output = output.slice(0, -1);
+  }
+  return `${output}...`;
+}
+
+function drawRoundedPath(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(x, y, width, height, r);
+    return;
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + width - r, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+  ctx.lineTo(x + r, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+}
+
+function shareValueColor(value, theme) {
+  if (value > 0) return theme.positive;
+  if (value < 0) return theme.negative;
+  return theme.ink;
+}
+
 function downloadJson(data) {
   const safeAccount = (data.accountInfo.account || "ibkr").replace(/[^\w.-]+/g, "_");
   const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -1422,6 +2135,12 @@ function formatNumber(value, digits = 0) {
 function formatPercent(value) {
   const amount = Number.isFinite(value) ? value : 0;
   return `${formatNumber(amount, 2)}%`;
+}
+
+function formatSignedPercent(value, digits = 2) {
+  const amount = Number.isFinite(value) ? value : 0;
+  const sign = amount > 0 ? "+" : "";
+  return `${sign}${formatNumber(amount, digits)}%`;
 }
 
 function formatDate(value) {

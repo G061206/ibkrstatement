@@ -3,5 +3,18 @@
   "framework": null,
   "installCommand": "",
   "buildCommand": null,
-  "outputDirectory": "."
+  "outputDirectory": ".",
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "ibkrstatement.site"
+        }
+      ],
+      "destination": "https://www.ibkrstatement.site/:path*",
+      "permanent": true
+    }
+  ]
 }

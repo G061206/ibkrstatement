@@ -5,11 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="IBKR Activity Statement parser and portfolio dashboard."
+      content="Free local IBKR Activity Statement parser. Upload an Interactive Brokers CSV statement in your browser to view NAV, positions, trades, P/L, fees, interest, and portfolio summaries."
     />
-    <title>IBKR Report Studio</title>
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="https://www.ibkrstatement.site/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.ibkrstatement.site/" />
+    <meta property="og:title" content="IBKR Statement Parser | IBKR Report Studio" />
+    <meta
+      property="og:description"
+      content="Parse Interactive Brokers Activity Statement CSV files locally in your browser and generate a private portfolio dashboard."
+    />
+    <meta property="og:site_name" content="IBKR Report Studio" />
+    <meta name="twitter:card" content="summary" />
+    <title>IBKR Statement Parser | IBKR Report Studio</title>
     <link rel="icon" type="image/svg+xml" href="./assets/icon.svg" />
     <link rel="stylesheet" href="./assets/styles.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "IBKR Report Studio",
+        "url": "https://www.ibkrstatement.site/",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "Any",
+        "description": "A privacy-focused IBKR Activity Statement CSV parser that runs locally in the browser and summarizes NAV, positions, trades, P/L, fees, interest, and currency exposure.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      }
+    </script>
   </head>
   <body>
     <div class="app-frame">
@@ -62,7 +89,30 @@
         </div>
       </header>
 
-      <main id="app" class="app-main"></main>
+      <main id="app" class="app-main">
+        <section class="upload-stage">
+          <div class="upload-copy">
+            <p class="eyebrow">IBKR Activity Statement</p>
+            <h1>IBKR Statement Parser</h1>
+            <p>
+              IBKR Report Studio is a free, privacy-focused Interactive Brokers statement parser.
+              Upload an Activity Statement CSV file to analyze NAV, open positions, trades,
+              realized and unrealized P/L, fees, interest, forex P/L, and portfolio allocation.
+              All parsing runs locally in your browser.
+            </p>
+          </div>
+
+          <div class="upload-panel">
+            <h2 class="card-title">Interactive Brokers CSV portfolio dashboard</h2>
+            <p class="guide-note">
+              Supports common IBKR Activity Statement sections including Account Information,
+              Statement, Net Asset Value, Change in NAV, Open Positions, Trades, Realized &
+              Unrealized Performance Summary, Interest, Fees, Forex P/L Details, SYEP Interest,
+              and Mark-to-Market Performance Summary.
+            </p>
+          </div>
+        </section>
+      </main>
     </div>
 
     <script type="module" src="./src/app.js"></script>

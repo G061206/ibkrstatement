@@ -1,6 +1,7 @@
 node_modules/
 .vercel/
 dist/
+outputs/
 *.log
 samples/*.csv
 .DS_Store
