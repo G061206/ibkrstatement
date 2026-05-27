@@ -34,6 +34,7 @@ const translations = {
     guideSubtitle: "从 IBKR Client Portal 导出 Activity Statement CSV",
     guideNote: "如果使用 Flex Queries，请选择 CSV 或 Text 格式，并确保包含 Net Asset Value、Open Positions、Trades、Realized & Unrealized Performance Summary 等区块。",
     guideSource: "IBKR 官方说明",
+    openSource: "开源",
     guideSteps: [
       "登录 IBKR Client Portal。",
       "进入顶部菜单 Performance & Reports，打开 Statements。",
@@ -177,6 +178,7 @@ const translations = {
     guideSubtitle: "Export an Activity Statement CSV from IBKR Client Portal",
     guideNote: "If you use Flex Queries, choose CSV or Text format and include sections such as Net Asset Value, Open Positions, Trades, and Realized & Unrealized Performance Summary.",
     guideSource: "IBKR official guide",
+    openSource: "Open source",
     guideSteps: [
       "Log in to IBKR Client Portal.",
       "Open Performance & Reports from the top menu, then go to Statements.",
@@ -437,10 +439,20 @@ function renderUpload(errorMessage = "") {
         </div>
         ${renderReportGuide()}
       </div>
+      ${renderOpenSourceLink()}
     </section>
   `;
 
   bindUploadEvents();
+}
+
+function renderOpenSourceLink() {
+  return `
+    <p class="home-source-link">
+      <span>${t("openSource")}</span>
+      <a href="https://github.com/G061206/ibkrstatement" target="_blank" rel="noopener noreferrer">G061206/ibkrstatement</a>
+    </p>
+  `;
 }
 
 function renderReportGuide() {

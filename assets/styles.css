@@ -651,6 +651,29 @@ html[data-theme="dark"] .theme-toggle-moon {
   text-decoration: underline;
 }
 
+.home-source-link {
+  grid-column: 1 / -1;
+  justify-self: center;
+  align-self: end;
+  margin: 4px 0 0;
+  color: var(--faint);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.home-source-link span {
+  margin-right: 8px;
+}
+
+.home-source-link a {
+  color: var(--green-strong);
+  text-decoration: none;
+}
+
+.home-source-link a:hover {
+  text-decoration: underline;
+}
+
 .file-name {
   min-width: 0;
   overflow: hidden;
