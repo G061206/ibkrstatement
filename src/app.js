@@ -1,6 +1,6 @@
-import { decodeReportFile } from "./encoding.js";
-import { isChineseIbkrReport } from "./reportLanguage.js";
-import { parseIbkrReport } from "./parser.js";
+import { decodeReportFile } from "./encoding.js?v=2.1.1";
+import { isChineseIbkrReport } from "./reportLanguage.js?v=2.1.1";
+import { parseIbkrReport } from "./parser.js?v=2.1.1";
 
 const app = document.querySelector("#app");
 
@@ -1223,7 +1223,7 @@ async function readFile(file) {
 
 async function loadSample() {
   try {
-    const response = await fetch("./samples/ibkr-sample-demo.csv");
+    const response = await fetch("./samples/ibkr-sample-demo.csv?v=2.1.1");
     if (!response.ok) throw new Error("sample unavailable");
     parseText(await response.text(), "ibkr-sample-demo.csv");
   } catch (error) {
