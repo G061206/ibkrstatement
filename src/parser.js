@@ -677,9 +677,39 @@ function toNumber(value) {
 
 function parseDate(value) {
   if (!value) return null;
-  const normalized = String(value).replace(/,/g, " ").replace(/\s+/g, " ").trim();
-  const date = new Date(normalized);
+  const normalized = String(value).trim().replace(/\s+/g, " ");
+
+  const isoLike = normalized.match(
+    /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[,\sT]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/
+  );
+  if (isoLike) {
+    return buildLocalDate(isoLike[1], isoLike[2], isoLike[3], isoLike[4], isoLike[5], isoLike[6]);
+  }
+
+  const slashDate = normalized.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[,\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/
+  );
+  if (slashDate) {
+    return buildLocalDate(slashDate[3], slashDate[1], slashDate[2], slashDate[4], slashDate[5], slashDate[6]);
+  }
+
+  const date = new Date(normalized.replace(/,/g, " "));
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function buildLocalDate(year, month, day, hour = 0, minute = 0, second = 0) {
+  const values = [year, month, day, hour || 0, minute || 0, second || 0].map(Number);
+  if (values.some((part) => !Number.isFinite(part))) return null;
+
+  const date = new Date(values[0], values[1] - 1, values[2], values[3], values[4], values[5]);
+  if (
+    date.getFullYear() !== values[0] ||
+    date.getMonth() !== values[1] - 1 ||
+    date.getDate() !== values[2]
+  ) {
+    return null;
+  }
+  return date;
 }
 
 function monthKey(date) {
