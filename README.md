@@ -1,8 +1,8 @@
 # IBKR Analytics Studio
 
-IBKR Analytics Studio 是一个面向 Interactive Brokers Activity Statement 的本地化报表分析工具。它可以在浏览器中直接解析 IBKR 导出的 CSV/TXT 报表，生成账户总览、持仓分析、绩效统计、每日交易统计、数据质量检查和社交分享图。
+IBKR Analytics Studio 是一个用于 Interactive Brokers Activity Statement 的本地化报表分析工具。它可以在浏览器中直接解析 IBKR 导出的 CSV/TXT 报表，生成账户总览、持仓分析、绩效统计、每日交易统计、数据质量检查和社交分享图。
 
-项目设计目标是：不依赖后端服务、不上传用户报表、不写入数据库，用一个静态前端应用完成从报表读取到可视化分析的完整流程。
+项目网站：https://www.ibkrstatement.site/
 
 ## 功能概览
 
