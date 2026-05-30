@@ -1075,8 +1075,7 @@ function renderFooter() {
   return `
     <footer class="footer">
       <div class="footer-inner">
-        <span>隐私优先</span>
-        <span>本地解析</span>
+        <span>Github地址</span>
         <a href="https://github.com/G061206/ibkrstatement" target="_blank" rel="noopener noreferrer">G061206/ibkrstatement</a>
       </div>
     </footer>
