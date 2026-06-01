@@ -214,7 +214,19 @@ export const translations = {
     totalPLMetric: "Total P/L",
     positionCountMetric: "Position Count",
     unrealizedPLMetric: "Unrealized P/L",
-    realizedPLMetric: "Realized P/L"
+    realizedPLMetric: "Realized P/L",
+    startingValue: "Starting Value",
+    markToMarket: "Mark-to-Market",
+    depositsAndWithdrawals: "Deposits & Withdrawals",
+    interest: "Interest",
+    changeInInterestAccruals: "Change in Interest Accruals",
+    otherFees: "Other Fees",
+    commissions: "Commissions",
+    salesTax: "Sales Tax",
+    otherFXTranslations: "Other FX Translations",
+    endingValue: "Ending Value",
+    monthlyTrend: "Monthly Trend",
+    noPositionMarketValue: "No position market value"
   },
   zh: {
     activityStatement: "Activity Statement",
@@ -422,7 +434,21 @@ export const translations = {
     accountViewDefault: "账户视图",
     unknownAccountLabel: "未识别账户",
     totalPLMetric: "总盈亏",
-    positionCountMetric: "持仓数"
+    positionCountMetric: "持仓数",
+    unrealizedPLMetric: "未实现盈亏",
+    realizedPLMetric: "已实现盈亏",
+    startingValue: "期初净值",
+    markToMarket: "盯市变化",
+    depositsAndWithdrawals: "出入金",
+    interest: "利息",
+    changeInInterestAccruals: "应计利息",
+    otherFees: "其他费用",
+    commissions: "佣金",
+    salesTax: "销售税",
+    otherFXTranslations: "汇兑折算",
+    endingValue: "期末净值",
+    monthlyTrend: "月度趋势",
+    noPositionMarketValue: "暂无持仓市值"
   }
 };
 

@@ -50,8 +50,17 @@ export function parseIbkrReport(csvText) {
 }
 
 function collectSections(csvText) {
+  const lines = csvText.split(/\r\n|\n|\r/).slice(0, 10);
+  let commas = 0;
+  let semicolons = 0;
+  for (const line of lines) {
+    commas += (line.match(/,/g) || []).length;
+    semicolons += (line.match(/;/g) || []).length;
+  }
+  const delimiter = semicolons > commas ? ";" : ",";
+
   const rows = splitCsvRows(csvText)
-    .map(parseCsvLine)
+    .map((line) => parseCsvLine(line, delimiter))
     .filter((row) => row.some((cell) => cell.trim() !== ""));
 
   const blocks = [];
@@ -97,7 +106,7 @@ function collectSections(csvText) {
     }
 
     return sections;
-  }, {});
+  }, Object.create(null));
 }
 
 function splitCsvRows(text) {
@@ -135,7 +144,7 @@ function splitCsvRows(text) {
   return rows;
 }
 
-export function parseCsvLine(line) {
+export function parseCsvLine(line, delimiter = ",") {
   const cells = [];
   let value = "";
   let inQuotes = false;
@@ -155,7 +164,7 @@ export function parseCsvLine(line) {
       continue;
     }
 
-    if (char === "," && !inQuotes) {
+    if (char === delimiter && !inQuotes) {
       cells.push(value);
       value = "";
       continue;
@@ -187,17 +196,41 @@ function parseAccountInfo(sections) {
 }
 
 function parseExchangeRates(sections, baseCurrency) {
-  const rates = { [baseCurrency || "USD"]: 1 };
-  const mtmRows = sections["Mark-to-Market Performance Summary"] || [];
+  const rates = Object.create(null);
+  rates[baseCurrency || "USD"] = 1;
 
-  for (const row of mtmRows) {
-    if (row["Asset Category"] !== "Forex") continue;
+  const processRow = (symbol, rawRate) => {
+    let rate = toNumber(rawRate);
+    if (rate <= 0 || !symbol) return;
 
-    const currency = row.Symbol;
-    const rate = toNumber(row["Current Price"]);
-    if (currency && currency !== baseCurrency && rate > 0) {
+    let currency = symbol.trim();
+    if (currency.includes(".")) {
+      const parts = currency.split(".");
+      if (parts.length === 2) {
+        const [c1, c2] = parts;
+        if (c1 === baseCurrency) {
+          currency = c2;
+          rate = 1 / rate;
+        } else if (c2 === baseCurrency) {
+          currency = c1;
+        }
+      }
+    }
+
+    if (currency && currency !== baseCurrency) {
       rates[currency] = rate;
     }
+  };
+
+  const baseRateRows = sections["Base Currency Exchange Rate"] || [];
+  for (const row of baseRateRows) {
+    processRow(row.Currency || row.Symbol, row.Rate || row["Current Price"]);
+  }
+
+  const mtmRows = sections["Mark-to-Market Performance Summary"] || [];
+  for (const row of mtmRows) {
+    if (row["Asset Category"] !== "Forex") continue;
+    processRow(row.Symbol, row["Current Price"]);
   }
 
   return rates;
@@ -351,7 +384,7 @@ function parseOpenPositions(rows = [], exchangeRates) {
 }
 
 function parseDividendIncome(sections, exchangeRates) {
-  const bySymbol = {};
+  const bySymbol = Object.create(null);
   let total = 0;
 
   for (const row of sections.Dividends || []) {
@@ -586,11 +619,21 @@ function analyzeMonthlySummary(sections, exchangeRates) {
     ensureMonth(date).forexPL += toNumber(row["Realized P/L"]);
   }
 
-  for (const row of sections["Stock Yield Enhancement Program Securities Lent Interest Details"] || []) {
+  const syepInterestRows = sections["Stock Yield Enhancement Program Securities Lent Interest Details"] || [];
+  const syepFeeRows = sections["Stock Yield Enhancement Program Securities Lent Fee Earned Details"] || [];
+
+  for (const row of syepInterestRows) {
     const date = parseDate(row["Value Date"]);
     if (!date) continue;
     const currency = row.Currency || "USD";
     ensureMonth(date).syepIncome += toNumber(row["Interest Paid to Customer"]) * (exchangeRates[currency] || 1);
+  }
+
+  for (const row of syepFeeRows) {
+    const date = parseDate(row["Value Date"]);
+    if (!date) continue;
+    const currency = row.Currency || "USD";
+    ensureMonth(date).syepIncome += toNumber(row["SYEP Fee Earned by Customer"]) * (exchangeRates[currency] || 1);
   }
 
   for (const row of sections.Interest || []) {

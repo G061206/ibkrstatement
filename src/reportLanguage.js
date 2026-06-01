@@ -82,12 +82,21 @@ export function isChineseIbkrReport(text) {
 }
 
 function previewRows(text) {
+  const lines = text.split(/\r\n|\n|\r/).slice(0, 10);
+  let commas = 0;
+  let semicolons = 0;
+  for (const line of lines) {
+    commas += (line.match(/,/g) || []).length;
+    semicolons += (line.match(/;/g) || []).length;
+  }
+  const delimiter = semicolons > commas ? ";" : ",";
+
   return text
     .split(/\r\n|\n|\r/)
     .slice(0, 120)
     .map((line) => line.trim())
     .filter(Boolean)
-    .map(parseCsvLine);
+    .map((line) => parseCsvLine(line, delimiter));
 }
 
 function hasEnglishIbkrStructure(rows) {

@@ -341,7 +341,7 @@ function renderOverview(data) {
         </section>
         <section class="table-card span-7">
           <div class="table-header"><h2>${t("navChange")}</h2></div>
-          ${renderSimpleTable([t("items"), t("amount")], data.navChange.map((row) => [row.label, signedMoney(row.value, currency)]), [false, true])}
+          ${renderSimpleTable([t("items"), t("amount")], data.navChange.map((row) => [t(row.key), signedMoney(row.value, currency)]), [false, true])}
         </section>
         <section class="dashboard-card span-5">
           <div class="card-header"><h2>${t("assetAllocation")}</h2><span class="pill">${currency}</span></div>
@@ -862,11 +862,10 @@ function renderDailyTradeChart(rows, month) {
 }
 
 function renderDailyStat(label, value, tone = null) {
-  const className = typeof tone === "number" ? valueClass(tone) : "";
   return `
     <div class="daily-stat">
       <span>${escapeHtml(label)}</span>
-      <strong class="${className}">${escapeHtml(value)}</strong>
+      <strong class="${typeof tone === "number" ? valueClass(tone) : ""}">${escapeHtml(value)}</strong>
     </div>
   `;
 }
@@ -1632,7 +1631,7 @@ function legacyShareTheme() {
 
 function buildLegacyShareModel(data) {
   const totalPl = data.plSummary.total;
-  const customName = state.shareName.trim();
+  const customName = (state.shareName || "").trim();
   return {
     name: state.shareHideName ? "*****" : (customName || data.accountInfo.name || t("accountViewDefault")),
     hideNav: state.shareHideNav,
@@ -1700,10 +1699,10 @@ function drawLegacyPortraitShareImage(ctx, model, theme, logoImage) {
   drawLegacySharePill(ctx, model.period, 70, 346, theme, { scale: 1.18 });
 
   drawLegacyShareHero(ctx, 70, 435, 940, 220, model, theme, { scale: 1.28 });
-  drawLegacyShareMetric(ctx, 70, 685, 455, 112, "总盈亏", formatMoney(model.totalPl, model.currency), model.totalPl, theme, { scale: 1.12 });
-  drawLegacyShareMetric(ctx, 555, 685, 455, 112, "未实现盈亏", formatMoney(model.unrealizedPl, model.currency), model.unrealizedPl, theme, { scale: 1.12 });
-  drawLegacyShareMetric(ctx, 70, 820, 455, 112, "已实现盈亏", formatMoney(model.realizedPl, model.currency), model.realizedPl, theme, { scale: 1.12 });
-  drawLegacyShareMetric(ctx, 555, 820, 455, 112, "持仓数", formatNumber(model.positions), model.positions, theme, { scale: 1.12 });
+  drawLegacyShareMetric(ctx, 70, 685, 455, 112, t("totalPLMetric"), formatMoney(model.totalPl, model.currency), model.totalPl, theme, { scale: 1.12 });
+  drawLegacyShareMetric(ctx, 555, 685, 455, 112, t("unrealizedPLMetric"), formatMoney(model.unrealizedPl, model.currency), model.unrealizedPl, theme, { scale: 1.12 });
+  drawLegacyShareMetric(ctx, 70, 820, 455, 112, t("realizedPLMetric"), formatMoney(model.realizedPl, model.currency), model.realizedPl, theme, { scale: 1.12 });
+  drawLegacyShareMetric(ctx, 555, 820, 455, 112, t("positionCountMetric"), formatNumber(model.positions), model.positions, theme, { scale: 1.12 });
   drawLegacyShareAllocation(ctx, 70, 970, 940, 285, model, theme, { scale: 1.18 });
   drawLegacyShareTickerList(ctx, 70, 1295, 940, 350, model, theme, { rowHeight: 50, scale: 1.18 });
   drawLegacyShareFooter(ctx, model, 70, 1684, 940, theme, { scale: 1.12 });
@@ -1828,7 +1827,7 @@ function drawLegacyShareAllocation(ctx, x, y, width, height, model, theme, optio
   const scale = options.scale || 1;
   const rows = model.allocation.slice(0, width > 500 ? 5 : 4);
   drawLegacySharePanel(ctx, x, y, width, height, theme);
-  drawLegacyShareText(ctx, state.language === "en" ? "Asset Allocation" : "资产配置", x + 24, y + 22, {
+  drawLegacyShareText(ctx, t("assetAllocation"), x + 24, y + 22, {
     size: 19 * scale,
     weight: 800,
     color: theme.ink,
@@ -1836,7 +1835,7 @@ function drawLegacyShareAllocation(ctx, x, y, width, height, model, theme, optio
   });
 
   if (!rows.length) {
-    drawLegacyShareText(ctx, state.language === "en" ? "No position market value" : "暂无持仓市值", x + 24, y + 70, {
+    drawLegacyShareText(ctx, t("noPositionMarketValue"), x + 24, y + 70, {
       size: 18 * scale,
       weight: 650,
       color: theme.muted,
@@ -1956,7 +1955,7 @@ function drawLegacyShareMonthlyTrend(ctx, x, y, width, height, model, theme, opt
   const scale = options.scale || 1;
   const rows = model.monthlyRows;
   drawLegacySharePanel(ctx, x, y, width, height, theme);
-  drawLegacyShareText(ctx, "月度趋势", x + 24, y + 20, {
+  drawLegacyShareText(ctx, t("monthlyTrend"), x + 24, y + 20, {
     size: 19 * scale,
     weight: 800,
     color: theme.ink,
@@ -1964,7 +1963,7 @@ function drawLegacyShareMonthlyTrend(ctx, x, y, width, height, model, theme, opt
   });
 
   if (!rows.length) {
-    drawLegacyShareText(ctx, "暂无月度数据", x + 24, y + 66, {
+    drawLegacyShareText(ctx, t("noMonthlyData"), x + 24, y + 66, {
       size: 17 * scale,
       weight: 650,
       color: theme.muted,
