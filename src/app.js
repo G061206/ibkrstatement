@@ -2313,7 +2313,14 @@ function getDaysInMonth(month) {
 function shortMonth(value) {
   if (!value) return "";
   const parts = String(value).split("-");
-  return parts.length > 1 ? `${Number(parts[1])}月` : value;
+  if (parts.length > 1) {
+    if (state.language === "en") {
+      const date = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
+      return new Intl.DateTimeFormat("en-US", { month: "short" }).format(date);
+    }
+    return `${Number(parts[1])}月`;
+  }
+  return value;
 }
 
 function numberLocale() {
