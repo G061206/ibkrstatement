@@ -1,6 +1,7 @@
 import { decodeReportFile } from "./encoding.js?v=2.1.9";
 import { isChineseIbkrReport } from "./reportLanguage.js?v=2.1.9";
 import { parseIbkrReport } from "./parser.js?v=2.1.9";
+import { translations } from "./translations.js?v=2.1.9";
 
 const app = document.querySelector("#app");
 
@@ -11,161 +12,6 @@ const tabs = [
   { id: "daily", labelKey: "tabDaily", titleKey: "dailyTitle", icon: "calendar" },
   { id: "data", labelKey: "tabData", titleKey: "dataTitle", icon: "database" }
 ];
-
-const copy = {
-  zh: {
-    activityStatement: "Activity Statement",
-    tabOverview: "总览",
-    tabPositions: "持仓",
-    tabPerformance: "收益",
-    tabDaily: "盈亏",
-    tabData: "数据",
-    overviewTitle: "账户总览",
-    positionsTitle: "持仓明细",
-    performanceTitle: "绩效概览",
-    dailyTitle: "盈亏统计",
-    dataTitle: "数据质量",
-    switchTheme: "切换主题",
-    mainNav: "主导航",
-    uploadEyebrow: "IBKR Activity Statement",
-    uploadTitle: "上传活动报表",
-    uploadIntro: "拖放您的 Interactive Brokers CSV/TXT 报表，生成本地化账户、持仓与绩效分析。",
-    privacyLabel: "隐私说明",
-    localOnly: "仅限本地处理",
-    privacyBody: "文件只在当前浏览器中读取和解析，不上传服务器，不写入数据库。导出的 JSON 只包含汇总后的结构化结果。",
-    dropTitle: "拖放 CSV 文件",
-    dropBody: "或点击从您的电脑中浏览。建议导出英文 Activity Statement。",
-    chooseFile: "选择文件",
-    loadSample: "载入示例",
-    pasteCsv: "或者粘贴 CSV 文本",
-    parseText: "处理文本",
-    exportGuide: "如何从 IBKR 导出",
-    guideStep1: "登录 IBKR Client Portal。",
-    guideStep2: "进入 Performance & Reports → Statements。",
-    guideStep3: "选择 Activity Statement 并点击 Run。",
-    guideStep4: "将语言设为 English，格式设为 CSV。",
-    guideStep5: "下载文件后回到这里上传或粘贴内容。",
-    supportedSections: "支持的数据板块",
-    localReport: "本地报表",
-    reportNav: "报表导航",
-    mobileReportNav: "移动端报表导航",
-    exportJson: "导出 JSON",
-    shareImage: "生成分享图",
-    security: "安全",
-    settings: "设置",
-    replaceFile: "更换文件",
-    searchPlaceholder: "搜索代码或标签...",
-    baseCurrency: "基础货币",
-    account: "账户",
-    unknownAccount: "未识别账户",
-    unknownPeriod: "未识别周期",
-    overviewHeading: "账户总览",
-    overviewSubtitle: "从 NAV、现金、持仓与交易数量快速判断账户状态。",
-    performanceHeading: "绩效概览",
-    performanceSubtitle: "按报表实际周期汇总已实现、未实现、资产类别和月度净额。",
-    dailyHeading: "盈亏统计",
-    dailySubtitle: "按交易日期查看每日已实现盈亏、交易笔数和成交金额。",
-    positionsHeading: "持仓明细",
-    positionsSubtitle: "按标的、资产类别、方向和币种查看当前 Open Positions。",
-    dataHeading: "数据质量",
-    dataSubtitle: "核对解析区块、汇率和诊断信息，适合排查报表字段缺失。",
-    shareDialogTitle: "生成社交分享图",
-    shareSize: "分享图尺寸",
-    shareName: "用户名",
-    shareNamePlaceholder: "自定义用户名",
-    hideShareName: "隐藏用户名",
-    hideEndingNav: "隐藏期末净值",
-    landscape: "横版",
-    portrait: "竖版",
-    downloadPng: "下载 PNG",
-    close: "关闭",
-    plDistribution: "盈亏分布",
-    plDistributionKicker: "已实现与未实现盈亏",
-    total: "合计",
-    realized: "已实现",
-    unrealized: "未实现",
-    stocks: "股票",
-    options: "期权",
-    forex: "外汇",
-    returnRate: "收益率"
-  },
-  en: {
-    activityStatement: "Activity Statement",
-    tabOverview: "Overview",
-    tabPositions: "Positions",
-    tabPerformance: "Performance",
-    tabDaily: "PnL",
-    tabData: "Data",
-    overviewTitle: "Account Overview",
-    positionsTitle: "Positions",
-    performanceTitle: "Performance",
-    dailyTitle: "PnL Stats",
-    dataTitle: "Data Quality",
-    switchTheme: "Toggle theme",
-    mainNav: "Primary navigation",
-    uploadEyebrow: "IBKR Activity Statement",
-    uploadTitle: "Upload Activity Statement",
-    uploadIntro: "Drop an Interactive Brokers CSV/TXT statement to generate local account, position, and performance analytics.",
-    privacyLabel: "Privacy note",
-    localOnly: "Local processing only",
-    privacyBody: "Files are read and parsed in this browser only. Nothing is uploaded or stored in a database. Exported JSON contains summarized structured results.",
-    dropTitle: "Drop CSV file",
-    dropBody: "Or browse from your computer. English Activity Statement exports are recommended.",
-    chooseFile: "Choose file",
-    loadSample: "Load sample",
-    pasteCsv: "Or paste CSV text",
-    parseText: "Process text",
-    exportGuide: "How to export from IBKR",
-    guideStep1: "Log in to IBKR Client Portal.",
-    guideStep2: "Go to Performance & Reports → Statements.",
-    guideStep3: "Choose Activity Statement and click Run.",
-    guideStep4: "Set Language to English and Format to CSV.",
-    guideStep5: "Download the file, then upload or paste it here.",
-    supportedSections: "Supported sections",
-    localReport: "Local report",
-    reportNav: "Report navigation",
-    mobileReportNav: "Mobile report navigation",
-    exportJson: "Export JSON",
-    shareImage: "Share image",
-    security: "Security",
-    settings: "Settings",
-    replaceFile: "Replace file",
-    searchPlaceholder: "Search symbols or tags...",
-    baseCurrency: "Base currency",
-    account: "Account",
-    unknownAccount: "Unknown account",
-    unknownPeriod: "Unknown period",
-    overviewHeading: "Account Overview",
-    overviewSubtitle: "Quickly inspect NAV, cash, positions, and trading activity.",
-    performanceHeading: "Performance Overview",
-    performanceSubtitle: "Summarize realized, unrealized, asset class, and monthly net contribution for the statement period.",
-    dailyHeading: "PnL Stats",
-    dailySubtitle: "Review daily realized P/L, trade count, and gross trading value by trade date.",
-    positionsHeading: "Positions",
-    positionsSubtitle: "Review current Open Positions by symbol, asset class, direction, and currency.",
-    dataHeading: "Data Quality",
-    dataSubtitle: "Check parsed sections, rates, and diagnostics for missing statement fields.",
-    shareDialogTitle: "Generate Social Share Image",
-    shareSize: "Share image size",
-    shareName: "Username",
-    shareNamePlaceholder: "Custom username",
-    hideShareName: "Hide username",
-    hideEndingNav: "Hide ending NAV",
-    landscape: "Landscape",
-    portrait: "Portrait",
-    downloadPng: "Download PNG",
-    close: "Close",
-    plDistribution: "P/L Distribution",
-    plDistributionKicker: "Realized and unrealized P/L",
-    total: "Total",
-    realized: "Realized",
-    unrealized: "Unrealized",
-    stocks: "Stocks",
-    options: "Options",
-    forex: "Forex",
-    returnRate: "Return"
-  }
-};
 
 const icons = {
   analytics: '<path d="M4 19V5" /><path d="M4 19h16" /><path d="M8 15l3-4 3 2 4-7" /><path d="M17 6h1.8v1.8" />',
@@ -218,7 +64,7 @@ const state = {
   shareName: localStorage.getItem("ibkr-share-name") || "",
   shareHideName: localStorage.getItem("ibkr-share-hide-name") === "1",
   shareHideNav: localStorage.getItem("ibkr-share-hide-nav") === "1",
-  language: localStorage.getItem("ibkr-analytics-language") === "en" ? "en" : "zh",
+  language: localStorage.getItem("ibkr-analytics-language") || "en",
   theme: localStorage.getItem("ibkr-analytics-theme") === "dark" ? "dark" : "light"
 };
 
@@ -475,30 +321,30 @@ function renderOverview(data) {
     <div class="content-stack">
       ${renderPageHeading(t("overviewHeading"), data, t("overviewSubtitle"))}
       <div class="grid-12">
-        ${renderKpi("期末净值", formatMoney(data.nav.total, currency), renderDateRange(data), "span-3")}
-        ${renderKpi("现金", formatMoney(data.nav.cash, currency), "Net Asset Value / Cash", "span-3")}
-        ${renderKpi("总盈亏", formatMoney(totalPL, currency), "已实现 + 未实现", "span-3", totalPL)}
-        ${renderKpi("时间加权收益", formatPercent(data.nav.rateOfReturn), "IBKR TWR", "span-3", data.nav.rateOfReturn)}
-        ${renderKpi("交易订单", formatNumber(data.tradeSummary.orderCount), `${formatNumber(data.tradeSummary.stockOrders)} 股票 / ${formatNumber(data.tradeSummary.forexOrders)} 外汇`, "span-3")}
-        ${renderKpi("当前持仓", formatNumber(data.positions.length), `${formatNumber(data.assetAllocation.length)} 个资产类别`, "span-3")}
-        ${renderKpi("识别区块", formatNumber(Object.keys(data.sectionStats).length), "CSV sections", "span-3")}
-        ${renderKpi("佣金费用", formatMoney(data.tradeSummary.totalCommissions, currency), "Trades summary", "span-3", -data.tradeSummary.totalCommissions)}
+        ${renderKpi(t("endingNav"), formatMoney(data.nav.total, currency), renderDateRange(data), "span-3")}
+        ${renderKpi(t("cash"), formatMoney(data.nav.cash, currency), state.language === "en" ? "Net Asset Value / Cash" : "净资产价值 / 现金", "span-3")}
+        ${renderKpi(t("totalPL"), formatMoney(totalPL, currency), t("realizedUnrealized"), "span-3", totalPL)}
+        ${renderKpi(t("returnRate"), formatPercent(data.nav.rateOfReturn), t("twr"), "span-3", data.nav.rateOfReturn)}
+        ${renderKpi(t("tradeOrders"), formatNumber(data.tradeSummary.orderCount), `${formatNumber(data.tradeSummary.stockOrders)} ${t("stocks")} / ${formatNumber(data.tradeSummary.forexOrders)} ${t("forex")}`, "span-3")}
+        ${renderKpi(t("currentPositions"), formatNumber(data.positions.length), `${formatNumber(data.assetAllocation.length)} ${t("assetClasses")}`, "span-3")}
+        ${renderKpi(t("csvSections"), formatNumber(Object.keys(data.sectionStats).length), t("csvSections"), "span-3")}
+        ${renderKpi(t("commissions"), formatMoney(data.tradeSummary.totalCommissions, currency), t("tradesummary"), "span-3", -data.tradeSummary.totalCommissions)}
       </div>
       <div class="grid-12">
         <section class="dashboard-card span-6">
-          <div class="card-header"><h2>资产配置</h2><span class="pill">${currency}</span></div>
+          <div class="card-header"><h2>${t("assetAllocation")}</h2><span class="pill">${currency}</span></div>
           ${renderAllocation(portfolioAllocation, currency)}
         </section>
         <section class="dashboard-card span-6">
-          <div class="card-header"><h2>币种敞口</h2><span class="pill">${currency}</span></div>
+          <div class="card-header"><h2>${t("currencyExposure")}</h2><span class="pill">${currency}</span></div>
           ${renderAllocation(data.currencyExposure, currency)}
         </section>
         <section class="table-card span-7">
-          <div class="table-header"><h2>NAV 变化</h2></div>
-          ${renderSimpleTable(["项目", "金额"], data.navChange.map((row) => [row.label, signedMoney(row.value, currency)]), [false, true])}
+          <div class="table-header"><h2>${t("navChange")}</h2></div>
+          ${renderSimpleTable([t("items"), t("amount")], data.navChange.map((row) => [row.label, signedMoney(row.value, currency)]), [false, true])}
         </section>
         <section class="dashboard-card span-5">
-          <div class="card-header"><h2>资产配置占比</h2><span class="pill">${currency}</span></div>
+          <div class="card-header"><h2>${t("assetAllocation")}</h2><span class="pill">${currency}</span></div>
           ${renderAllocationPie(portfolioAllocation, currency)}
         </section>
       </div>
@@ -514,17 +360,17 @@ function renderPerformance(data) {
     <div class="content-stack">
       ${renderPageHeading(t("performanceHeading"), data, t("performanceSubtitle"))}
       <div class="grid-12">
-        ${renderKpi("已实现盈亏", formatMoney(pl.realized, currency), "Realized P/L", "span-4 performance-kpi", pl.realized, {
+        ${renderKpi(t("realizedPLLabel"), formatMoney(pl.realized, currency), t("realized"), "span-4 performance-kpi", pl.realized, {
           label: t("returnRate"),
           value: `${formatSignedPercent(safePercent(pl.realized, data.nav.total))} / NAV`,
           toneValue: pl.realized
         })}
-        ${renderKpi("未实现盈亏", formatMoney(pl.unrealized, currency), "Unrealized P/L", "span-4 performance-kpi", pl.unrealized, {
+        ${renderKpi(t("unrealized"), formatMoney(pl.unrealized, currency), t("unrealized"), "span-4 performance-kpi", pl.unrealized, {
           label: t("returnRate"),
           value: `${formatSignedPercent(safePercent(pl.unrealized, data.nav.total))} / NAV`,
           toneValue: pl.unrealized
         })}
-        ${renderKpi("总盈亏", formatMoney(pl.total, currency), "Total P/L", "span-4 is-featured performance-kpi", pl.total, {
+        ${renderKpi(t("totalPL"), formatMoney(pl.total, currency), t("total"), "span-4 is-featured performance-kpi", pl.total, {
           label: t("returnRate"),
           value: `${formatSignedPercent(safePercent(pl.total, data.nav.total))} / NAV`,
           toneValue: pl.total
@@ -596,21 +442,21 @@ function renderDailyStats(data) {
       </div>
       <div class="grid-12">
         <section class="dashboard-card span-7 daily-calendar-card">
-          <div class="card-header"><h2>盈亏日历</h2><span class="pill">${escapeHtml(selected || "-")}</span></div>
+          <div class="card-header"><h2>${t("profitCalendar")}</h2><span class="pill">${escapeHtml(selected || "-")}</span></div>
           ${renderProfitCalendar(monthRows, selected, currency)}
         </section>
         <section class="dashboard-card span-5 daily-trades-card">
-          <div class="card-header"><h2>每日交易统计</h2><span class="pill">${formatNumber(totalTrades)} trades</span></div>
+          <div class="card-header"><h2>${t("dailyTradeStats")}</h2><span class="pill">${formatNumber(totalTrades)} trades</span></div>
           ${renderDailyTradeChart(monthRows, selected)}
           <div class="daily-stat-grid">
-            ${renderDailyStat("总交易笔数", formatNumber(totalTrades))}
-            ${renderDailyStat("总成交额", formatMoney(totalGross, currency))}
-            ${renderDailyStat("日均交易", formatNumber(averageTrades, 1))}
-            ${renderDailyStat("已实现盈亏", signedMoney(totalRealized, currency), totalRealized)}
+            ${renderDailyStat(t("totalTradesLabel"), formatNumber(totalTrades))}
+            ${renderDailyStat(t("grossTradeValue"), formatMoney(totalGross, currency))}
+            ${renderDailyStat(t("averageTrades"), formatNumber(averageTrades, 1))}
+            ${renderDailyStat(t("realizedPLLabel"), signedMoney(totalRealized, currency), totalRealized)}
           </div>
         </section>
         <section class="table-card span-12">
-          <div class="table-header"><h2>交易流水</h2><span class="pill">${formatNumber(tradeRows.length)} rows</span></div>
+          <div class="table-header"><h2>${t("tradeStream")}</h2><span class="pill">${formatNumber(tradeRows.length)} rows</span></div>
           ${isYear ? renderMonthlyTickerTable(selected, data.tradeDetails || []) : renderDailyTradeTable(tradeRows, currency)}
         </section>
       </div>
@@ -632,7 +478,7 @@ function renderPositions(data) {
       ${renderPageHeading(t("positionsHeading"), data, t("positionsSubtitle"))}
       <div class="grid-12">
         <section class="dashboard-card span-4">
-          <div class="card-header"><h2>持仓资产分布</h2><span class="pill">${formatNumber(rows.length)} rows</span></div>
+          <div class="card-header"><h2>${t("positionDistribution")}</h2><span class="pill">${formatNumber(rows.length)} rows</span></div>
           ${renderAllocation(summarizeVisiblePositions(rows, "assetCategory"), currency)}
         </section>
         <section class="dashboard-card span-4">
@@ -640,7 +486,7 @@ function renderPositions(data) {
           ${renderAllocation(summarizeVisiblePositions(rows, "side"), currency)}
         </section>
         <section class="dashboard-card span-4">
-          <div class="card-header"><h2>币种</h2></div>
+          <div class="card-header"><h2>${t("currency")}</h2></div>
           ${renderAllocation(summarizeVisiblePositions(rows, "currency"), currency)}
         </section>
         <section class="table-card span-12">
@@ -650,8 +496,8 @@ function renderPositions(data) {
         <section class="dashboard-card span-12 position-chart-card">
           <div class="card-header">
             <div>
-              <h2>持仓资产分布</h2>
-              <p class="card-kicker">按标的市值与现金统计</p>
+              <h2>${t("positionDistribution")}</h2>
+              <p class="card-kicker">${t("byMarketValue")}</p>
             </div>
           </div>
           ${renderPositionAssetPie(rows, currency, data.nav.cash)}
@@ -798,7 +644,7 @@ function renderTopContributors(data, currency) {
       `${formatPercent((Math.abs(row.realizedPL) / totalAbs) * 100)}`
     ]);
 
-  return rows.length ? renderSimpleTable(["代码", "总盈亏", "贡献百分比"], rows, [false, true, true], true) : renderEmpty("暂无 ticker 贡献数据。");
+  return rows.length ? renderSimpleTable([t("symbol"), t("totalPLDist"), t("contributionPercent")], rows, [false, true, true], true) : renderEmpty(t("noTickerData"));
 }
 
 function renderRealizedTrades(data, currency) {
@@ -811,7 +657,7 @@ function renderRealizedTrades(data, currency) {
       escapeHtml(row.category),
       `<span class="${valueClass(row.realizedPL)}">${signedMoney(row.realizedPL, row.currency || currency)}</span>`
     ]);
-  return rows.length ? renderSimpleTable(["日期", "代码", "类别", "已实现盈亏"], rows, [false, false, false, true], true) : renderEmpty("暂无已实现交易。");
+  return rows.length ? renderSimpleTable([t("date"), t("symbol"), t("category"), t("realizedPLLabel")], rows, [false, false, false, true], true) : renderEmpty(t("noRealizedTrades"));
 }
 
 function renderPositionsTable(rows, currency) {
@@ -826,7 +672,7 @@ function renderPositionsTable(rows, currency) {
     `<span class="${valueClass(row.unrealizedPL)}">${signedMoney(row.unrealizedPL, row.currency || currency)}</span>`,
     escapeHtml(row.currency || currency)
   ]);
-  return renderSimpleTable(["标的", "资产", "方向", "数量", "市值", "成本", "股息", "未实现", "币种"], tableRows, [false, false, false, true, true, true, true, true, false], true);
+  return renderSimpleTable([t("underlying"), t("asset"), t("direction"), t("quantity"), t("marketValue"), t("cost"), t("dividend"), t("unrealizedGL"), t("currency")], tableRows, [false, false, false, true, true, true, true, true, false], true);
 }
 
 function buildPositionAssetAllocation(positions, cash = 0, currency = "USD") {
@@ -842,7 +688,7 @@ function buildPositionAssetAllocation(positions, cash = 0, currency = "USD") {
 
   const cashValue = Number.isFinite(cash) && cash > 0 ? cash : 0;
   if (cashValue && searchMatch(["Cash", "现金", currency])) {
-    const cashLabel = state.language === "en" ? "Cash" : "现金";
+    const cashLabel = state.language === "en" ? "Cash" : t("cash");
     map.set(cashLabel, (map.get(cashLabel) || 0) + cashValue);
   }
 
@@ -860,7 +706,7 @@ function buildPositionAssetAllocation(positions, cash = 0, currency = "USD") {
 
 function renderPositionAssetPie(positions, currency, cash = 0) {
   const rows = buildPositionAssetAllocation(positions, cash, currency);
-  if (!rows.length) return renderEmpty("暂无持仓市值数据。");
+  if (!rows.length) return renderEmpty(state.language === "en" ? "No position market value data." : "暂无持仓市值数据。");
 
   let cursor = 0;
   const gradient = rows
@@ -1026,7 +872,7 @@ function renderDailyStat(label, value, tone = null) {
 }
 
 function renderDailyTradeTable(rows, currency) {
-  if (!rows.length) return renderEmpty("当前月份没有交易记录。");
+  if (!rows.length) return renderEmpty(state.language === "en" ? "No trades in this month." : "当前月份没有交易记录。");
   const tableRows = rows.map((row) => [
     formatDateTime(row.dateTime),
     `<strong>${escapeHtml(row.baseSymbol || row.symbol || "-")}</strong>`,
@@ -1038,7 +884,7 @@ function renderDailyTradeTable(rows, currency) {
     formatMoney(row.commission, currency),
     `<span class="${valueClass(row.realizedPL)}">${signedMoney(row.realizedPL, currency)}</span>`
   ]);
-  return renderSimpleTable(["成交时间", "股票代码", "方向", "资产", "数量", "成交价", "成交金额", "佣金", "已实现盈亏"], tableRows, [false, false, false, false, true, true, true, true, true], true);
+  return renderSimpleTable([t("tradeTime"), t("stockCode"), t("direction"), t("asset"), t("quantity"), t("price"), t("tradeAmount"), t("commission"), t("realizedPLLabel")], tableRows, [false, false, false, false, true, true, true, true, true], true);
 }
 
 function renderMonthlyTickerTable(year, tradeDetails) {
@@ -1064,7 +910,7 @@ function renderMonthlyTickerTable(year, tradeDetails) {
     ];
   });
 
-  return renderSimpleTable(["月份", "股票 (示例)", "数量"], rows, [false, false, true]);
+  return renderSimpleTable([t("month"), state.language === "en" ? "Stock (sample)" : `${t("stock")} (${t("sample")})`, t("quantity")], rows, [false, false, true]);
 }
 
 function renderSimpleTable(headers, rows, numericColumns = [], allowHtml = false) {
@@ -1347,11 +1193,11 @@ function applyTheme() {
 }
 
 function applyLanguage() {
-  document.documentElement.lang = state.language === "en" ? "en" : "zh-CN";
+  document.documentElement.lang = state.language === "zh" ? "zh-CN" : "en";
 }
 
 function t(key) {
-  return copy[state.language]?.[key] || copy.zh[key] || key;
+  return translations[state.language]?.[key] || translations.en[key] || key;
 }
 
 async function readFile(file) {
@@ -1371,7 +1217,7 @@ async function loadSample() {
     if (!response.ok) throw new Error("sample unavailable");
     parseText(await response.text(), "ibkr-sample-demo.csv");
   } catch (error) {
-    state.error = "示例文件读取失败，请确认通过本地服务打开项目。";
+    state.error = state.language === "en" ? "Failed to load sample file. Please confirm you are accessing this project via a local server." : "示例文件读取失败，请确认通过本地服务打开项目。";
     renderUpload();
   }
 }
@@ -1387,13 +1233,13 @@ function maybeAutoLoadSample() {
 function parseText(text, sourceName) {
   const cleanText = String(text || "").trim();
   if (!cleanText) {
-    state.error = "没有可解析的内容。";
+    state.error = t("emptyContent");
     renderUpload();
     return;
   }
 
   if (isChineseIbkrReport(cleanText)) {
-    state.error = "检测到这份报表可能是中文导出。当前解析器主要支持英文 IBKR Activity Statement CSV，请将 Language 设置为 English 后重新导出。";
+    state.error = t("chineseReportDetected");
     renderUpload();
     return;
   }
@@ -1522,17 +1368,17 @@ function buildShareModel(data) {
 
 function drawShareLandscape(ctx, model, theme, width, height) {
   drawShareBrand(ctx, theme, 54, 44);
-  drawShareText(ctx, "IBKR Portfolio Insight", 54, 116, 34, 900, theme.ink, { maxWidth: 560 });
-  drawShareText(ctx, "Local-only Activity Statement analytics", 54, 160, 16, 600, theme.muted, { maxWidth: 560 });
+  drawShareText(ctx, t("portfolioInsight"), 54, 116, 34, 900, theme.ink, { maxWidth: 560 });
+  drawShareText(ctx, t("localOnlyAnalytics"), 54, 160, 16, 600, theme.muted, { maxWidth: 560 });
   drawSharePill(ctx, model.account, 54, 194, theme);
   drawSharePill(ctx, model.period, 180, 194, theme, { width: 310 });
   drawSharePill(ctx, `${model.currency} Base`, 508, 194, theme, { accent: true, width: 118 });
 
   drawShareReturn(ctx, model, theme, width - 390, 76, 330);
-  drawShareKpi(ctx, "Ending NAV", formatMoney(model.nav, model.currency), theme, 54, 252, 254, 100);
-  drawShareKpi(ctx, "Total P/L", signedMoney(model.totalPl, model.currency), theme, 324, 252, 254, 100, model.totalPl);
-  drawShareKpi(ctx, "Unrealized", signedMoney(model.unrealizedPl, model.currency), theme, 594, 252, 254, 100, model.unrealizedPl);
-  drawShareKpi(ctx, "Positions", formatNumber(model.positions), theme, 864, 252, 254, 100);
+  drawShareKpi(ctx, t("endingNav"), formatMoney(model.nav, model.currency), theme, 54, 252, 254, 100);
+  drawShareKpi(ctx, t("totalPL"), signedMoney(model.totalPl, model.currency), theme, 324, 252, 254, 100, model.totalPl);
+  drawShareKpi(ctx, t("unrealized"), signedMoney(model.unrealizedPl, model.currency), theme, 594, 252, 254, 100, model.unrealizedPl);
+  drawShareKpi(ctx, t("currentPositions"), formatNumber(model.positions), theme, 864, 252, 254, 100);
 
   drawShareAllocation(ctx, model, theme, 54, 388, 330, 198);
   drawShareMonthly(ctx, model, theme, 408, 388, 350, 198);
@@ -1542,16 +1388,16 @@ function drawShareLandscape(ctx, model, theme, width, height) {
 
 function drawSharePortrait(ctx, model, theme, width, height) {
   drawShareBrand(ctx, theme, 64, 58);
-  drawShareText(ctx, "IBKR Portfolio Insight", 64, 146, 44, 900, theme.ink, { maxWidth: 680 });
-  drawShareText(ctx, "Local-only Activity Statement analytics", 64, 204, 22, 600, theme.muted, { maxWidth: 640 });
+  drawShareText(ctx, t("portfolioInsight"), 64, 146, 44, 900, theme.ink, { maxWidth: 680 });
+  drawShareText(ctx, t("localOnlyAnalytics"), 64, 204, 22, 600, theme.muted, { maxWidth: 640 });
   drawSharePill(ctx, model.account, 64, 252, theme, { scale: 1.18, width: 150 });
   drawSharePill(ctx, model.period, 232, 252, theme, { scale: 1.18, width: 430 });
   drawShareReturn(ctx, model, theme, 690, 242, 320, { large: true });
 
-  drawShareKpi(ctx, "Ending NAV", formatMoney(model.nav, model.currency), theme, 64, 360, 452, 130, model.nav, { scale: 1.18 });
-  drawShareKpi(ctx, "Total P/L", signedMoney(model.totalPl, model.currency), theme, 564, 360, 452, 130, model.totalPl, { scale: 1.18 });
-  drawShareKpi(ctx, "Realized", signedMoney(model.realizedPl, model.currency), theme, 64, 518, 452, 130, model.realizedPl, { scale: 1.18 });
-  drawShareKpi(ctx, "Unrealized", signedMoney(model.unrealizedPl, model.currency), theme, 564, 518, 452, 130, model.unrealizedPl, { scale: 1.18 });
+  drawShareKpi(ctx, t("endingNav"), formatMoney(model.nav, model.currency), theme, 64, 360, 452, 130, model.nav, { scale: 1.18 });
+  drawShareKpi(ctx, t("totalPL"), signedMoney(model.totalPl, model.currency), theme, 564, 360, 452, 130, model.totalPl, { scale: 1.18 });
+  drawShareKpi(ctx, t("realized"), signedMoney(model.realizedPl, model.currency), theme, 64, 518, 452, 130, model.realizedPl, { scale: 1.18 });
+  drawShareKpi(ctx, t("unrealized"), signedMoney(model.unrealizedPl, model.currency), theme, 564, 518, 452, 130, model.unrealizedPl, { scale: 1.18 });
 
   drawShareAllocation(ctx, model, theme, 64, 704, 952, 230, { scale: 1.12 });
   drawShareMonthly(ctx, model, theme, 64, 976, 952, 190, { scale: 1.12 });
@@ -1562,14 +1408,14 @@ function drawSharePortrait(ctx, model, theme, width, height) {
 function drawShareBrand(ctx, theme, x, y) {
   drawShareRoundRect(ctx, x, y, 48, 48, 7, theme.primary);
   drawShareText(ctx, "IB", x + 13, y + 12, 18, 900, "#ffffff");
-  drawShareText(ctx, "IBKR Analytics Studio", x + 64, y + 4, 18, 900, theme.ink);
-  drawShareText(ctx, "Private browser-side parser", x + 64, y + 29, 13, 700, theme.muted);
+  drawShareText(ctx, t("ibkrAnalyticsStudio"), x + 64, y + 4, 18, 900, theme.ink);
+  drawShareText(ctx, t("privateBrowserParser"), x + 64, y + 29, 13, 700, theme.muted);
 }
 
 function drawShareReturn(ctx, model, theme, x, y, width, options = {}) {
   const size = options.large ? 54 : 46;
   const value = formatSignedPercent(model.twr);
-  drawShareText(ctx, "Time Weighted Return", x, y, 13, 800, theme.muted, { align: "right", maxWidth: width });
+  drawShareText(ctx, t("timeWeightedReturn"), x, y, 13, 800, theme.muted, { align: "right", maxWidth: width });
   drawShareText(ctx, value, x + width, y + 20, size, 900, shareValueColor(model.twr, theme), { align: "right", maxWidth: width });
 }
 
@@ -1623,7 +1469,7 @@ function drawShareMonthly(ctx, model, theme, x, y, width, height, options = {}) 
 function drawShareTickers(ctx, model, theme, x, y, width, height, options = {}) {
   const scale = options.scale || 1;
   drawSharePanel(ctx, x, y, width, height, theme);
-  drawShareText(ctx, "Top Contributors", x + 20 * scale, y + 16 * scale, 14 * scale, 900, theme.muted);
+  drawShareText(ctx, t("topContributors"), x + 20 * scale, y + 16 * scale, 14 * scale, 900, theme.muted);
   const rows = model.topTickers.slice(0, options.compact ? 3 : 5);
   rows.forEach((row, index) => {
     const rowY = y + 52 * scale + index * 27 * scale;
@@ -1634,8 +1480,8 @@ function drawShareTickers(ctx, model, theme, x, y, width, height, options = {}) 
 
 function drawShareFooter(ctx, model, theme, x, y, width, options = {}) {
   const scale = options.scale || 1;
-  drawShareText(ctx, "Local-only report · No statement data uploaded", x, y, 13 * scale, 800, theme.muted);
-  drawShareText(ctx, `Generated ${model.generatedDate}`, x + width, y, 13 * scale, 800, theme.muted, { align: "right" });
+  drawShareText(ctx, t("localOnlyAnalytics"), x, y, 13 * scale, 800, theme.muted);
+  drawShareText(ctx, `${t("generatedAt")} ${model.generatedDate}`, x + width, y, 13 * scale, 800, theme.muted, { align: "right" });
 }
 
 function drawSharePanel(ctx, x, y, width, height, theme) {
@@ -1923,7 +1769,7 @@ function drawLegacyShareBrand(ctx, theme, logoImage, x, y, options = {}) {
 function drawLegacyShareHero(ctx, x, y, width, height, model, theme, options = {}) {
   const scale = options.scale || 1;
   drawLegacySharePanel(ctx, x, y, width, height, theme);
-  drawLegacyShareText(ctx, "期末净值", x + 28, y + 26, {
+  drawLegacyShareText(ctx, t("endingNav"), x + 28, y + 26, {
     size: 20 * scale,
     weight: 740,
     color: theme.muted,
@@ -1936,7 +1782,8 @@ function drawLegacyShareHero(ctx, x, y, width, height, model, theme, options = {
     color: model.hideNav ? theme.faint : theme.ink,
     maxWidth: width - 56
   });
-  drawLegacyShareText(ctx, model.hideNav ? "现金 *****" : `现金 ${formatMoney(model.cash, model.currency)}`, x + 28, y + height - 54, {
+  const cashLabel = state.language === "en" ? "Cash" : t("cash");
+  drawLegacyShareText(ctx, model.hideNav ? `${cashLabel} *****` : `${cashLabel} ${formatMoney(model.cash, model.currency)}`, x + 28, y + height - 54, {
     size: 18 * scale,
     weight: 700,
     color: theme.muted,
@@ -1981,7 +1828,7 @@ function drawLegacyShareAllocation(ctx, x, y, width, height, model, theme, optio
   const scale = options.scale || 1;
   const rows = model.allocation.slice(0, width > 500 ? 5 : 4);
   drawLegacySharePanel(ctx, x, y, width, height, theme);
-  drawLegacyShareText(ctx, "资产配置", x + 24, y + 22, {
+  drawLegacyShareText(ctx, state.language === "en" ? "Asset Allocation" : "资产配置", x + 24, y + 22, {
     size: 19 * scale,
     weight: 800,
     color: theme.ink,
@@ -1989,7 +1836,7 @@ function drawLegacyShareAllocation(ctx, x, y, width, height, model, theme, optio
   });
 
   if (!rows.length) {
-    drawLegacyShareText(ctx, "暂无持仓市值", x + 24, y + 70, {
+    drawLegacyShareText(ctx, state.language === "en" ? "No position market value" : "暂无持仓市值", x + 24, y + 70, {
       size: 18 * scale,
       weight: 650,
       color: theme.muted,
@@ -2053,7 +1900,7 @@ function drawLegacyShareTickerList(ctx, x, y, width, height, model, theme, optio
   const maxAbs = Math.max(...rows.map((row) => Math.abs(row.realizedPL)), 1);
 
   drawLegacySharePanel(ctx, x, y, width, height, theme);
-  drawLegacyShareText(ctx, "贡献排行", x + 24, y + 22, {
+  drawLegacyShareText(ctx, t("contributorRanking"), x + 24, y + 22, {
     size: 19 * scale,
     weight: 800,
     color: theme.ink,
@@ -2061,7 +1908,7 @@ function drawLegacyShareTickerList(ctx, x, y, width, height, model, theme, optio
   });
 
   if (!rows.length) {
-    drawLegacyShareText(ctx, "暂无已平仓贡献", x + 24, y + 70, {
+    drawLegacyShareText(ctx, t("noClosedContributions"), x + 24, y + 70, {
       size: 17 * scale,
       weight: 650,
       color: theme.muted,
@@ -2160,13 +2007,13 @@ function drawLegacyShareMonthlyTrend(ctx, x, y, width, height, model, theme, opt
 
 function drawLegacyShareFooter(ctx, model, x, y, width, theme, options = {}) {
   const scale = options.scale || 1;
-  drawLegacyShareText(ctx, "IBKR Activity Statement", x, y, {
+  drawLegacyShareText(ctx, t("ibkrActivityStatement"), x, y, {
     size: 17 * scale,
     weight: 720,
     color: theme.faint,
     maxWidth: width * 0.6
   });
-  drawLegacyShareText(ctx, `生成于 ${model.generatedDate}`, x + width, y, {
+  drawLegacyShareText(ctx, `${t("generatedAt")} ${model.generatedDate}`, x + width, y, {
     size: 17 * scale,
     weight: 720,
     color: theme.faint,
@@ -2305,43 +2152,59 @@ function renderDateRange(data) {
   if (data.accountInfo.period) return data.accountInfo.period;
   const first = formatDate(data.tradeSummary.firstTradeDate);
   const last = formatDate(data.tradeSummary.lastTradeDate);
-  return first && last ? `${first} - ${last}` : "未识别周期";
+  return first && last ? `${first} - ${last}` : t("unknownPeriod");
 }
 
 function displayGroup(name) {
-  const labels = {
-    Stocks: "股票",
-    "Equity and Index Options": "期权",
-    Forex: "外汇",
-    Cash: "现金",
-    Long: "多头",
-    Short: "空头"
-  };
-  return labels[name] || name || "Unknown";
+  if (state.language === "zh") {
+    const labels = {
+      Stocks: t("stocks"),
+      "Equity and Index Options": t("options"),
+      Forex: t("forex"),
+      Cash: t("cash"),
+      Long: t("longLabel"),
+      Short: t("shortLabel")
+    };
+    return labels[name] || name || "Unknown";
+  }
+  return name || "Unknown";
 }
 
 function sideLabel(side) {
-  if (side === "Long") return '<span class="pill positive">多头</span>';
-  if (side === "Short") return '<span class="pill negative">空头</span>';
+  if (state.language === "zh") {
+    if (side === "Long") return `<span class="pill positive">${t("longLabel")}</span>`;
+    if (side === "Short") return `<span class="pill negative">${t("shortLabel")}</span>`;
+  } else {
+    if (side === "Long") return '<span class="pill positive">Long</span>';
+    if (side === "Short") return '<span class="pill negative">Short</span>';
+  }
   return `<span class="pill">${escapeHtml(side || "-")}</span>`;
 }
 
 function sideBadge(side) {
-  if (side === "Buy") return '<span class="pill positive">买入</span>';
-  if (side === "Sell") return '<span class="pill negative">卖出</span>';
+  if (state.language === "zh") {
+    if (side === "Buy") return `<span class="pill positive">${t("buyLabel")}</span>`;
+    if (side === "Sell") return `<span class="pill negative">${t("sellLabel")}</span>`;
+  } else {
+    if (side === "Buy") return '<span class="pill positive">Buy</span>';
+    if (side === "Sell") return '<span class="pill negative">Sell</span>';
+  }
   return `<span class="pill">${escapeHtml(side || "-")}</span>`;
 }
 
 function displayWarning(warning) {
-  const labels = {
-    missingAccountInfo: "未找到 Account Information 区块。",
-    missingNetAssetValue: "未找到 Net Asset Value 区块。",
-    missingTrades: "未找到 Trades 区块。",
-    missingPositions: "未找到 Open Positions 区块。",
-    missingPlSummary: "未找到 Realized & Unrealized Performance Summary 区块。",
-    sparseReport: "文件结构不像标准 IBKR Activity Statement CSV。"
-  };
-  return labels[warning] || warning;
+  if (state.language === "zh") {
+    const labels = {
+      missingAccountInfo: t("missingAccountInfo"),
+      missingNetAssetValue: t("missingNetAssetValue"),
+      missingTrades: t("missingTrades"),
+      missingPositions: t("missingPositions"),
+      missingPlSummary: t("missingPlSummary"),
+      sparseReport: t("sparseReport")
+    };
+    return labels[warning] || warning;
+  }
+  return warning;
 }
 
 function icon(name) {
