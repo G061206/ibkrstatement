@@ -563,34 +563,45 @@ function renderDailyStats(data) {
   const currency = data.baseCurrency || "USD";
   const rows = data.dailyTradeStats || [];
   const months = Array.from(new Set(rows.map((row) => row.month))).sort();
-  const selectedMonth = months.includes(state.dailyMonth) ? state.dailyMonth : months.at(-1) || "";
-  const monthRows = selectedMonth ? rows.filter((row) => row.month === selectedMonth) : [];
-  const tradeRows = selectedMonth ? (data.tradeDetails || []).filter((row) => row.month === selectedMonth) : [];
+  const years = Array.from(new Set(months.map((m) => m.split("-")[0]))).sort();
+  const selected = (state.dailyMonth && (months.includes(state.dailyMonth) || years.includes(state.dailyMonth))) ? state.dailyMonth : (months.at(-1) || "");
+  const isYear = /^\d{4}$/.test(selected);
+  const monthRows = selected ? rows.filter((row) => isYear ? row.month.startsWith(`${selected}-`) : row.month === selected) : [];
+  const tradeRows = selected ? (isYear ? (data.tradeDetails || []).filter((row) => row.month && row.month.startsWith(`${selected}-`)) : (data.tradeDetails || []).filter((row) => row.month === selected)) : [];
   const totalTrades = monthRows.reduce((sum, row) => sum + row.tradeCount, 0);
   const totalGross = monthRows.reduce((sum, row) => sum + row.grossTradeValue, 0);
   const totalRealized = monthRows.reduce((sum, row) => sum + row.realizedPL, 0);
-  const daysInMonth = selectedMonth ? getDaysInMonth(selectedMonth) : 0;
+  const daysInMonth = !isYear && selected ? getDaysInMonth(selected) : 0;
   const averageTrades = daysInMonth ? totalTrades / daysInMonth : 0;
+
+  const periodOptionsParts = [];
+  years.forEach((y) => {
+    periodOptionsParts.push('<option value="' + escapeAttribute(y) + '"' + (y === selected ? ' selected' : '') + '>' + escapeHtml(y + ' 年') + '</option>');
+  });
+  months.forEach((month) => {
+    periodOptionsParts.push('<option value="' + escapeAttribute(month) + '"' + (month === selected ? ' selected' : '') + '>' + escapeHtml(formatMonthLabel(month)) + '</option>');
+  });
+  const periodOptions = periodOptionsParts.join('');
 
   return `
     <div class="content-stack">
       ${renderPageHeading(t("dailyHeading"), data, t("dailySubtitle"))}
       <div class="daily-toolbar">
         <label class="month-select-label">
-          <span>月份</span>
+          <span>期间</span>
           <select class="month-select" id="dailyMonthSelect" ${months.length ? "" : "disabled"}>
-            ${months.map((month) => `<option value="${escapeAttribute(month)}"${month === selectedMonth ? " selected" : ""}>${escapeHtml(formatMonthLabel(month))}</option>`).join("")}
+            ${periodOptions}
           </select>
         </label>
       </div>
       <div class="grid-12">
         <section class="dashboard-card span-7 daily-calendar-card">
-          <div class="card-header"><h2>盈亏日历</h2><span class="pill">${escapeHtml(selectedMonth || "-")}</span></div>
-          ${renderProfitCalendar(monthRows, selectedMonth, currency)}
+          <div class="card-header"><h2>盈亏日历</h2><span class="pill">${escapeHtml(selected || "-")}</span></div>
+          ${renderProfitCalendar(monthRows, selected, currency)}
         </section>
         <section class="dashboard-card span-5 daily-trades-card">
           <div class="card-header"><h2>每日交易统计</h2><span class="pill">${formatNumber(totalTrades)} trades</span></div>
-          ${renderDailyTradeChart(monthRows, selectedMonth)}
+          ${renderDailyTradeChart(monthRows, selected)}
           <div class="daily-stat-grid">
             ${renderDailyStat("总交易笔数", formatNumber(totalTrades))}
             ${renderDailyStat("总成交额", formatMoney(totalGross, currency))}
@@ -600,7 +611,7 @@ function renderDailyStats(data) {
         </section>
         <section class="table-card span-12">
           <div class="table-header"><h2>交易流水</h2><span class="pill">${formatNumber(tradeRows.length)} rows</span></div>
-          ${renderDailyTradeTable(tradeRows, currency)}
+          ${isYear ? renderMonthlyTickerTable(selected, data.tradeDetails || []) : renderDailyTradeTable(tradeRows, currency)}
         </section>
       </div>
     </div>
@@ -887,6 +898,40 @@ function renderPositionAssetPie(positions, currency, cash = 0) {
 function renderProfitCalendar(rows, month, currency) {
   if (!month) return renderEmpty("暂无逐日交易数据。");
 
+  const isYear = /^\d{4}$/.test(month);
+  if (isYear) {
+    // Aggregate by month for the year and render 12 month cells
+    const year = month;
+    const byMonth = new Map();
+    rows.forEach((row) => {
+      if (!row.month) return;
+      if (!row.month.startsWith(year + '-')) return;
+      const m = row.month; // YYYY-MM
+      const cur = byMonth.get(m) || { realizedPL: 0, tradeCount: 0 };
+      cur.realizedPL += row.realizedPL || 0;
+      cur.tradeCount += row.tradeCount || 0;
+      byMonth.set(m, cur);
+    });
+
+    const monthsList = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
+    const maxAbs = Math.max(1, ...Array.from(byMonth.values()).map((v) => Math.abs(v.realizedPL)));
+    const cells = monthsList.map((m) => {
+      const dataRow = byMonth.get(m);
+      const value = dataRow?.realizedPL || 0;
+      const intensity = dataRow ? Math.min(0.78, 0.16 + Math.abs(value) / maxAbs * 0.52) : 0;
+      const tone = value > 0 ? "is-positive" : value < 0 ? "is-negative" : "";
+      const label = shortMonth(m);
+      return `<div class="calendar-cell ${tone}" style="--heat-alpha:${intensity.toFixed(2)}" title="${escapeAttribute(`${m}: ${signedMoney(value, currency)} · ${formatNumber(dataRow?.tradeCount || 0)} trades`)}"><span class="calendar-day">${escapeHtml(label)}</span>${dataRow ? `<strong class="${valueClass(value)}">${signedCalendarAmount(value)}</strong>` : ''}</div>`;
+    });
+
+    return `
+      <div class="profit-calendar months-grid">
+        ${cells.join('')}
+      </div>
+    `;
+  }
+
+  // month mode (YYYY-MM)
   const [year, monthNumber] = month.split("-").map(Number);
   const daysInMonth = getDaysInMonth(month);
   const firstDay = new Date(year, monthNumber - 1, 1).getDay();
@@ -927,6 +972,30 @@ function renderProfitCalendar(rows, month, currency) {
 
 function renderDailyTradeChart(rows, month) {
   if (!month) return renderEmpty("暂无逐日交易数据。");
+  const isYear = /^\d{4}$/.test(month);
+
+  if (isYear) {
+    // monthly bars for the year
+    const year = month;
+    const byMonth = new Map();
+    rows.forEach((row) => {
+      if (!row.month) return;
+      if (!row.month.startsWith(year + '-')) return;
+      const m = row.month;
+      const cur = byMonth.get(m) || { tradeCount: 0 };
+      cur.tradeCount += row.tradeCount || 0;
+      byMonth.set(m, cur);
+    });
+    const monthsList = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
+    const maxCount = Math.max(1, ...Array.from(byMonth.values()).map((r) => r.tradeCount || 0));
+    const bars = monthsList.map((m) => {
+      const row = byMonth.get(m);
+      const count = row?.tradeCount || 0;
+      return `<div class="daily-bar-column" title="${escapeAttribute(`${m}: ${formatNumber(count)} trades`)}"><div class="daily-bar" style="height:${Math.max(count ? 8 : 2, count / maxCount * 150)}px"></div><span>${escapeHtml(shortMonth(m))}</span></div>`;
+    });
+    return `<div class="daily-trade-chart months-chart">${bars.join('')}</div>`;
+  }
+
   const daysInMonth = getDaysInMonth(month);
   const byDay = new Map(rows.map((row) => [row.day, row]));
   const maxCount = Math.max(1, ...rows.map((row) => row.tradeCount));
@@ -970,6 +1039,32 @@ function renderDailyTradeTable(rows, currency) {
     `<span class="${valueClass(row.realizedPL)}">${signedMoney(row.realizedPL, currency)}</span>`
   ]);
   return renderSimpleTable(["成交时间", "股票代码", "方向", "资产", "数量", "成交价", "成交金额", "佣金", "已实现盈亏"], tableRows, [false, false, false, false, true, true, true, true, true], true);
+}
+
+function renderMonthlyTickerTable(year, tradeDetails) {
+  if (!year) return renderEmpty("无数据");
+  const byMonth = new Map();
+  (tradeDetails || []).forEach((row) => {
+    if (!row.month || !row.baseSymbol) return;
+    if (!row.month.startsWith(year + '-')) return;
+    const list = byMonth.get(row.month) || new Set();
+    list.add(row.baseSymbol || row.symbol);
+    byMonth.set(row.month, list);
+  });
+
+  const monthsList = Array.from(byMonth.keys()).sort();
+  if (!monthsList.length) return renderEmpty("当年无交易数据。");
+
+  const rows = monthsList.map((m) => {
+    const tickers = Array.from(byMonth.get(m)).slice(0, 20);
+    return [
+      escapeHtml(formatMonthLabel(m)),
+      escapeHtml(tickers.join(', ')),
+      formatNumber(byMonth.get(m).size)
+    ];
+  });
+
+  return renderSimpleTable(["月份", "股票 (示例)", "数量"], rows, [false, false, true]);
 }
 
 function renderSimpleTable(headers, rows, numericColumns = [], allowHtml = false) {
