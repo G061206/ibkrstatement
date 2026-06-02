@@ -1,4 +1,152 @@
 const OPTION_ASSET = "Equity and Index Options";
+const SECTION_ALIASES = {
+  账户信息: "Account Information",
+  净资产值: "Net Asset Value",
+  净资产值变更: "Change in NAV",
+  按市值计算的表现总结: "Mark-to-Market Performance Summary",
+  已实现和未实现的表现总结: "Realized & Unrealized Performance Summary",
+  现金报告: "Cash Report",
+  未平仓持仓: "Open Positions",
+  外汇结余: "Forex Balances",
+  净股票持仓总结: "Net Stock Position Summary",
+  交易: "Trades",
+  股票赠与活动: "Grant Activity",
+  存款和取款: "Deposits & Withdrawals",
+  股息: "Dividends",
+  代扣税: "Withholding Tax",
+  利息: "Interest",
+  费用: "Fees",
+  应计利息: "Interest Accruals",
+  应计股息的变化: "Change in Dividend Accruals",
+  金融产品信息: "Financial Instrument Information",
+  代码: "Codes",
+  "注释/法律注释": "Notes/Legal Notes"
+};
+
+const HEADER_ALIASES = {
+  域名称: "Field Name",
+  域值: "Field Value",
+  名称: "Name",
+  账户: "Account",
+  账户类型: "Account Type",
+  客户类型: "Customer Type",
+  账户能力: "Account Capabilities",
+  基础货币: "Base Currency",
+  资产类型: "Asset Class",
+  资产分类: "Asset Category",
+  之前合计: "Prior Total",
+  当前多头: "Current Long",
+  当前空头: "Current Short",
+  当前合计: "Current Total",
+  变更: "Change",
+  时间加权的收益率: "Time Weighted Rate of Return",
+  代码: "Symbol",
+  "先前 数量": "Prior Quantity",
+  "当前 数量": "Current Quantity",
+  "先前 价格": "Prior Price",
+  "当前 价格": "Current Price",
+  "按市值计盈亏 持仓": "Mark-to-Market P/L Position",
+  "按市值计盈亏 交易": "Mark-to-Market P/L Transaction",
+  "按市值计盈亏 佣金": "Mark-to-Market P/L Commissions",
+  "按市值计盈亏 其它": "Mark-to-Market P/L Other",
+  "按市值计盈亏 总数": "Mark-to-Market P/L Total",
+  费用调整: "Cost Adj.",
+  "已实现的 短期利润": "Realized S/T Profit",
+  "已实现的 短期损失": "Realized S/T Loss",
+  "已实现的 长期利润": "Realized L/T Profit",
+  "已实现的 长期损失": "Realized L/T Loss",
+  "已实现的 总数": "Realized Total",
+  "未实现的 短期利润": "Unrealized S/T Profit",
+  "未实现的 短期损失": "Unrealized S/T Loss",
+  "未实现的 长期利润": "Unrealized L/T Profit",
+  "未实现的 长期损失": "Unrealized L/T Loss",
+  "未实现的 总数": "Unrealized Total",
+  总数: "Total",
+  货币总结: "Currency Summary",
+  货币: "Currency",
+  证券: "Securities",
+  期货: "Futures",
+  开盘: "Open",
+  数量: "Quantity",
+  合约乘数: "Mult",
+  成本价格: "Cost Price",
+  成本基础: "Cost Basis",
+  "成本基础 USD": "Cost Basis in USD",
+  收盘价格: "Close Price",
+  价值: "Value",
+  "价值 USD": "Value in USD",
+  未实现的损益: "Unrealized P/L",
+  "未实现盈亏 USD": "Unrealized P/L in USD",
+  描述: "Description",
+  在IB的股份: "Shares at IB",
+  借入的股份: "Shares Borrowed",
+  借出的股份: "Shares Lent",
+  净股份: "Net Shares",
+  "日期/时间": "Date/Time",
+  交易价格: "T. Price",
+  收益: "Proceeds",
+  "佣金/税": "Comm/Fee",
+  "佣金 USD": "Comm in USD",
+  基础: "Basis",
+  已实现的损益: "Realized P/L",
+  按市值计算的损益: "MTM P/L",
+  "以市值计（MTM） USD": "MTM in USD",
+  报告日期: "Report Date",
+  奖励日期: "Award Date",
+  股票兑现日期: "Vesting Date",
+  价格: "Price",
+  结算日期: "Settle Date",
+  日期: "Date",
+  金额: "Amount",
+  除息日: "Ex Date",
+  支付日期: "Pay Date",
+  税: "Tax",
+  费用: "Fee",
+  总股息率: "Gross Rate",
+  总额: "Gross Amount",
+  净额: "Net Amount",
+  合约编号: "Conid",
+  证券号码: "Security ID",
+  底层: "Underlying",
+  上市交易所: "Listing Exch",
+  乘数: "Multiplier",
+  类型: "Type",
+  意思: "Meaning",
+  "代码 （继续）": "Code (Cont.)",
+  "意思 （继续）": "Meaning (Cont.)",
+  注: "Note"
+};
+
+const FIELD_VALUE_ALIASES = {
+  名称: "Name",
+  账户: "Account",
+  账户类型: "Account Type",
+  客户类型: "Customer Type",
+  账户能力: "Account Capabilities",
+  基础货币: "Base Currency",
+  开始价值: "Starting Value",
+  按市值计价: "Mark-to-Market",
+  存款和取款: "Deposits & Withdrawals",
+  股票赠与活动: "Grant Activity",
+  股息: "Dividends",
+  代扣税款: "Withholding Tax",
+  应计股息的变化: "Change in Dividend Accruals",
+  利息: "Interest",
+  应计利息变更: "Change in Interest Accruals",
+  佣金: "Commissions",
+  其它外汇换算: "Other FX Translations",
+  结束价值: "Ending Value"
+};
+
+const VALUE_ALIASES = {
+  现金: "Cash",
+  股票: "Stocks",
+  期权: OPTION_ASSET,
+  外汇: "Forex",
+  总数: "Total",
+  "总计（全部资产）": "Total (All Assets)",
+  基础货币总结: "Base Currency Summary"
+};
 
 export function parseIbkrReport(csvText) {
   const sections = collectSections(csvText);
@@ -65,14 +213,14 @@ function collectSections(csvText) {
 
     if (columns.length < 2) continue;
 
-    const sectionName = columns[0];
+    const sectionName = normalizeSectionName(columns[0]);
     const rowType = columns[1];
 
     if (rowType === "Header") {
       if (currentBlock) blocks.push(currentBlock);
       currentBlock = {
         section: sectionName,
-        headers: columns,
+        headers: normalizeHeaders(columns),
         rows: []
       };
       continue;
@@ -91,13 +239,39 @@ function collectSections(csvText) {
     for (const dataRow of block.rows) {
       const row = {};
       block.headers.forEach((header, index) => {
-        if (header) row[header] = (dataRow[index] ?? "").trim();
+        if (header) row[header] = normalizeCellValue(header, dataRow[index]);
       });
       sections[block.section].push(row);
     }
 
     return sections;
   }, {});
+}
+
+function normalizeSectionName(sectionName) {
+  return SECTION_ALIASES[sectionName] || sectionName;
+}
+
+function normalizeHeaders(columns) {
+  const seen = new Map();
+  return columns.map((header, index) => {
+    const normalized = index < 2 ? header : HEADER_ALIASES[header] || header;
+    if (!normalized) return normalized;
+
+    const count = seen.get(normalized) || 0;
+    seen.set(normalized, count + 1);
+    if (count === 0) return normalized;
+    return `${normalized} ${count + 1}`;
+  });
+}
+
+function normalizeCellValue(header, value) {
+  const clean = String(value ?? "").trim();
+  if (header === "Field Name") return FIELD_VALUE_ALIASES[clean] || clean;
+  if (header === "Asset Class" || header === "Asset Category" || header === "Currency Summary") {
+    return VALUE_ALIASES[clean] || clean;
+  }
+  return clean;
 }
 
 function splitCsvRows(text) {

@@ -6,7 +6,7 @@ IBKR Analytics Studio 是一个用于 Interactive Brokers Activity Statement 的
 
 ## 功能概览
 
-- 本地解析 IBKR Activity Statement CSV/TXT。
+- 本地解析中文或英文 IBKR Activity Statement CSV/TXT。
 - 支持文件拖放、文件选择、粘贴 CSV 文本和载入示例数据。
 - 自动识别报表账户、周期、基础货币、净值、现金、持仓、交易、费用、利息和外汇损益等信息。
 - 提供总览、持仓、绩效、每日、数据五个分析栏目。
@@ -89,16 +89,16 @@ IBKR Analytics Studio 是一个用于 Interactive Brokers Activity Statement 的
 
 ## 支持的数据来源
 
-推荐从 IBKR Client Portal 导出英文 Activity Statement：
+推荐从 IBKR Client Portal 导出 Activity Statement：
 
 1. 登录 IBKR Client Portal。
 2. 进入 Performance & Reports -> Statements。
 3. 选择 Activity Statement 并点击 Run。
-4. 将 Language 设置为 English。
+4. 将 Language 设置为中文或 English。
 5. 将 Format 设置为 CSV。
 6. 下载文件后在本项目中上传或粘贴内容。
 
-当前解析器主要面向英文 IBKR Activity Statement CSV。中文导出的报表字段名可能不同，项目会尝试检测并提示重新导出英文版本。
+当前解析器支持 IBKR 中文和英文 Activity Statement CSV。中文导出的区块名、字段名和资产类别会先归一化为内部英文结构，再复用同一套统计逻辑。
 
 ## 已解析的主要区块
 
@@ -170,6 +170,12 @@ npm run check
 - `src/parser.js`
 - `src/reportLanguage.js`
 - `src/app.js`
+
+测试中文/英文解析：
+
+```powershell
+npm test
+```
 
 ## 目录结构
 
@@ -244,7 +250,7 @@ Vercel 配置文件已包含在 `vercel.json` 中。
 
 ## 已知限制
 
-- 主要支持英文 IBKR Activity Statement CSV。
+- 支持中文和英文 IBKR Activity Statement CSV。
 - 不同 IBKR 报表模板可能导致字段缺失或字段名变化。
 - 税务、保证金、期权希腊值和公司行动等高级报表内容目前不是重点分析对象。
 - 页面中的统计结果只用于投资复盘和数据查看，不构成投资建议或税务建议。
