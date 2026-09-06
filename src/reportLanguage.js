@@ -1,4 +1,4 @@
-import { parseCsvLine } from "./parser.js";
+import { parseCsvLine } from "./parser.js?v=2.1.7";
 
 const CJK_PATTERN = /[\u3400-\u9fff]/;
 const ENGLISH_SECTION_NAMES = new Set([

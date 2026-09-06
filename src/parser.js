@@ -1,5 +1,28 @@
 const OPTION_ASSET = "Equity and Index Options";
 
+export class ReportError extends Error {
+  constructor(code, currency = "") {
+    super(code);
+    this.name = "ReportError";
+    this.code = code;
+    this.currency = currency;
+  }
+}
+
+function currencyCode(value, fallback = "USD") {
+  const currency = String(value || fallback).trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(currency)) throw new ReportError("invalidCurrency");
+  return currency;
+}
+
+function getRate(rates, currency) {
+  const code = currencyCode(currency);
+  if (!Object.hasOwn(rates, code) || !Number.isFinite(rates[code]) || rates[code] <= 0) {
+    throw new ReportError("missingExchangeRate", code);
+  }
+  return rates[code];
+}
+
 export function parseIbkrReport(csvText) {
   const sections = collectSections(csvText);
   const accountInfo = parseAccountInfo(sections);
@@ -181,7 +204,7 @@ function parseAccountInfo(sections) {
   return {
     account: infoMap.get("Account") || "",
     name: infoMap.get("Name") || "",
-    baseCurrency: infoMap.get("Base Currency") || "USD",
+    baseCurrency: currencyCode(infoMap.get("Base Currency")),
     period: statementMap.get("Period") || infoMap.get("Period") || ""
   };
 }
@@ -193,10 +216,24 @@ function parseExchangeRates(sections, baseCurrency) {
   for (const row of mtmRows) {
     if (row["Asset Category"] !== "Forex") continue;
 
-    const currency = row.Symbol;
+    const currency = currencyCode(row.Symbol);
     const rate = toNumber(row["Current Price"]);
     if (currency && currency !== baseCurrency && rate > 0) {
       rates[currency] = rate;
+    }
+  }
+
+  // Explicit conversion rates take precedence over the MTM fallback.
+  // Repeated dated entries use the latest report date, regardless of row order.
+  const datedRates = new Map();
+  for (const row of sections["Base Currency Exchange Rate"] || []) {
+    if (!row.Currency || row.Currency.startsWith("Total")) continue;
+    const currency = currencyCode(row.Currency);
+    const rate = toNumber(readValue(row, ["Rate", "Exchange Rate"]));
+    const date = parseDate(row.Date)?.getTime() ?? 0;
+    if (currency !== baseCurrency && rate > 0 && date >= (datedRates.get(currency) ?? -1)) {
+      rates[currency] = rate;
+      datedRates.set(currency, date);
     }
   }
 
@@ -247,6 +284,13 @@ function parsePlSummary(rows = [], trades = []) {
   };
   const closeDateBySymbol = latestCloseDateBySymbol(trades);
   const closedPositions = [];
+  if (!rows.length) {
+    for (const key of Object.keys(plSummary)) {
+      plSummary[key] = { realized: null, unrealized: null, total: null };
+    }
+    return { plSummary, closedPositions };
+  }
+  plSummary.total = { realized: null, unrealized: null, total: null };
   let lastAssetCategory = "";
 
   for (const row of rows) {
@@ -323,8 +367,8 @@ function parseOpenPositions(rows = [], exchangeRates) {
       let assetCategory = row["Asset Category"] || "Other";
       if (assetCategory === OPTION_ASSET) assetCategory = "Options";
 
-      const currency = row.Currency || "USD";
-      const rate = exchangeRates[currency] || 1;
+      const currency = currencyCode(row.Currency);
+      const rate = getRate(exchangeRates, currency);
       const option = parseOptionSymbol(row.Symbol);
       const quantity = toNumber(row.Quantity);
       const costBasis = toNumber(row["Cost Basis"]);
@@ -369,10 +413,10 @@ function parseDividendIncome(sections, exchangeRates) {
     const symbol = parseDividendSymbol(row);
     if (!symbol) continue;
 
-    const currency = row.Currency || "USD";
+    const currency = currencyCode(row.Currency);
     const value = toNumber(row.Amount);
     if (!value) continue;
-    const baseValue = value * (exchangeRates[currency] || 1);
+    const baseValue = value * getRate(exchangeRates, currency);
 
     bySymbol[symbol] = (bySymbol[symbol] || 0) + value;
     bySymbolBase[symbol] = (bySymbolBase[symbol] || 0) + baseValue;
@@ -391,13 +435,10 @@ function applyPositionDividends(positions, dividendIncome) {
   const baseDividendBySymbol = dividendIncome?.bySymbolBase || {};
 
   return positions.map((position) => {
-    const symbols = new Set([
-      position.symbol,
-      position.baseSymbol,
-      parseOptionSymbol(position.symbol).baseSymbol
-    ].filter(Boolean));
-    const dividends = Array.from(symbols).reduce((sum, symbol) => sum + (dividendBySymbol[symbol] || 0), 0);
-    const baseDividends = Array.from(symbols).reduce((sum, symbol) => sum + (baseDividendBySymbol[symbol] || 0), 0);
+    // A stock dividend belongs to the stock, never to derivatives of that stock.
+    if (position.assetCategory !== "Stocks" || position.isOption) return position;
+    const dividends = dividendBySymbol[position.symbol] || 0;
+    const baseDividends = baseDividendBySymbol[position.symbol] || 0;
     return {
       ...position,
       dividends,
@@ -426,17 +467,16 @@ function analyzeTrades(rows = [], exchangeRates) {
     if (category === OPTION_ASSET) optionOrders += 1;
     if (category === "Forex") forexOrders += 1;
 
-    const currency = row.Currency || "USD";
-    const rate = exchangeRates[currency] || 1;
-    const rawCommission = toNumber(readCommission(row));
+    const currency = currencyCode(row.Currency);
+    const rate = getRate(exchangeRates, currency);
     const rawRealizedPL = toNumber(row["Realized P/L"]);
-    const commission = rawCommission * rate;
+    const commission = convertTradeField(row, exchangeRates, "commission");
     const tradeRealized = rawRealizedPL * rate;
     totalCommissions += Math.abs(commission);
     realizedPL += tradeRealized;
 
     if (category === OPTION_ASSET && row.Code?.includes("O") && toNumber(row.Quantity) < 0) {
-      optionPremium += (toNumber(row.Proceeds) + rawCommission) * rate;
+      optionPremium += toNumber(row.Proceeds) * rate + commission;
     }
 
     if (rawRealizedPL !== 0) {
@@ -473,14 +513,14 @@ function parseTradeDetails(rows = [], exchangeRates) {
     .filter((row) => row.DataDiscriminator === "Order")
     .map((row) => {
       const date = parseDate(row["Date/Time"]);
-      const currency = row.Currency || "USD";
-      const rate = exchangeRates[currency] || 1;
+      const currency = currencyCode(row.Currency);
+      const rate = getRate(exchangeRates, currency);
       const quantity = toNumber(row.Quantity);
       const price = toNumber(row["T. Price"]);
       const proceeds = toNumber(row.Proceeds);
       const commission = toNumber(readCommission(row));
       const realizedPL = toNumber(row["Realized P/L"]);
-      const mtmPL = toNumber(row["MTM P/L"]);
+      const mtmPL = readTradeField(row, "mtm").amount;
 
       return {
         date: date ? dateKey(date) : "",
@@ -496,13 +536,15 @@ function parseTradeDetails(rows = [], exchangeRates) {
         proceeds,
         grossValue: Math.abs(proceeds),
         commission,
+        commissionCurrency: readTradeField(row, "commission").currency,
         realizedPL,
         mtmPL,
+        mtmCurrency: readTradeField(row, "mtm").currency,
         baseProceeds: proceeds * rate,
         baseGrossValue: Math.abs(proceeds * rate),
-        baseCommission: commission * rate,
+        baseCommission: convertTradeField(row, exchangeRates, "commission"),
         baseRealizedPL: realizedPL * rate,
-        baseMtmPL: mtmPL * rate,
+        baseMtmPL: convertTradeField(row, exchangeRates, "mtm"),
         exchangeRate: rate,
         code: row.Code || ""
       };
@@ -537,16 +579,16 @@ function analyzeDailyTrades(rows = [], exchangeRates) {
     const date = parseDate(trade["Date/Time"]);
     if (!date) continue;
 
-    const currency = trade.Currency || "USD";
-    const rate = exchangeRates[currency] || 1;
+    const currency = currencyCode(trade.Currency);
+    const rate = getRate(exchangeRates, currency);
     const row = ensureDay(date);
     const symbol = trade.Symbol || "";
 
     row.tradeCount += 1;
     row.realizedPL += toNumber(trade["Realized P/L"]) * rate;
-    row.mtmPL += toNumber(trade["MTM P/L"]) * rate;
+    row.mtmPL += convertTradeField(trade, exchangeRates, "mtm");
     row.grossTradeValue += Math.abs(toNumber(trade.Proceeds) * rate);
-    row.commissions += Math.abs(toNumber(readCommission(trade)) * rate);
+    row.commissions += Math.abs(convertTradeField(trade, exchangeRates, "commission"));
     if (symbol) row.symbols.add(symbol);
   }
 
@@ -573,6 +615,7 @@ function analyzeMonthlySummary(sections, exchangeRates) {
         syepIncome: 0,
         interest: 0,
         commissions: 0,
+        forexCommissions: 0,
         fees: 0,
         net: 0
       });
@@ -587,23 +630,25 @@ function analyzeMonthlySummary(sections, exchangeRates) {
     if (!date) continue;
 
     const row = ensureMonth(date);
-    const currency = trade.Currency || "USD";
-    const rate = exchangeRates[currency] || 1;
+    const currency = currencyCode(trade.Currency);
+    const rate = getRate(exchangeRates, currency);
     const category = trade["Asset Category"];
     const realized = toNumber(trade["Realized P/L"]) * rate;
-    const commission = toNumber(readCommission(trade)) * rate;
+    const commission = convertTradeField(trade, exchangeRates, "commission");
 
     row.commissions += Math.abs(commission);
 
     if (category === OPTION_ASSET) {
       row.optionsPL += realized;
       if (trade.Code?.includes("O") && toNumber(trade.Quantity) < 0) {
-        row.optionsPremium += (toNumber(trade.Proceeds) + toNumber(readCommission(trade))) * rate;
+        row.optionsPremium += toNumber(trade.Proceeds) * rate + commission;
       }
     } else if (category === "Stocks") {
       row.stocksPL += realized;
     } else if (category === "Forex") {
-      row.forexPL += toNumber(trade["MTM P/L"]) * rate || realized;
+      const mtm = readTradeField(trade, "mtm");
+      row.forexPL += mtm.present ? convertTradeField(trade, exchangeRates, "mtm") : realized;
+      if (mtm.present) row.forexCommissions += commission;
     }
   }
 
@@ -616,22 +661,22 @@ function analyzeMonthlySummary(sections, exchangeRates) {
   for (const row of sections["Stock Yield Enhancement Program Securities Lent Interest Details"] || []) {
     const date = parseDate(row["Value Date"]);
     if (!date) continue;
-    const currency = row.Currency || "USD";
-    ensureMonth(date).syepIncome += toNumber(row["Interest Paid to Customer"]) * (exchangeRates[currency] || 1);
+    const currency = currencyCode(row.Currency);
+    ensureMonth(date).syepIncome += toNumber(row["Interest Paid to Customer"]) * getRate(exchangeRates, currency);
   }
 
   for (const row of sections.Interest || []) {
     const date = parseDate(row.Date);
     if (!date) continue;
-    const currency = row.Currency || "USD";
-    ensureMonth(date).interest += toNumber(row.Amount) * (exchangeRates[currency] || 1);
+    const currency = currencyCode(row.Currency);
+    ensureMonth(date).interest += toNumber(row.Amount) * getRate(exchangeRates, currency);
   }
 
   for (const row of sections.Fees || []) {
     const date = parseDate(row.Date);
     if (!date) continue;
-    const currency = row.Currency || "USD";
-    ensureMonth(date).fees += Math.abs(toNumber(row.Amount) * (exchangeRates[currency] || 1));
+    const currency = currencyCode(row.Currency);
+    ensureMonth(date).fees += Math.abs(toNumber(row.Amount) * getRate(exchangeRates, currency));
   }
 
   return Array.from(monthly.values())
@@ -642,8 +687,9 @@ function analyzeMonthlySummary(sections, exchangeRates) {
         row.stocksPL +
         row.forexPL +
         row.syepIncome +
-        row.interest -
-        row.commissions -
+        row.interest +
+        // Stock/option Realized P/L already includes commissions. Forex MTM does not.
+        row.forexCommissions -
         row.fees
     }))
     .sort((a, b) => a.month.localeCompare(b.month));
@@ -684,12 +730,17 @@ function summarizePositions(positions, key) {
 function buildWarnings(sections, nav, positions, tradeSummary) {
   const warnings = [];
 
-  if (!sections["Account Information"]) warnings.push("未找到 Account Information 区块。");
-  if (!sections["Net Asset Value"]) warnings.push("未找到 Net Asset Value 区块。");
-  if (!sections.Trades) warnings.push("未找到 Trades 区块，交易分析会为空。");
-  if (!sections["Open Positions"]) warnings.push("未找到 Open Positions 区块，持仓列表会为空。");
+  if (!sections["Account Information"]?.length) warnings.push("missingAccountInfo");
+  if (!sections["Net Asset Value"]?.length) warnings.push("missingNetAssetValue");
+  if (!sections.Trades?.length) warnings.push("missingTrades");
+  if (!sections["Open Positions"]?.length) warnings.push("missingPositions");
+  if (!sections["Realized & Unrealized Performance Summary"]?.length) {
+    warnings.push("missingPlSummary");
+  } else if (!sections["Realized & Unrealized Performance Summary"].some(row => row["Asset Category"] === "Total (All Assets)")) {
+    warnings.push("missingPlTotal");
+  }
   if (!nav.total && positions.length === 0 && tradeSummary.orderCount === 0) {
-    warnings.push("文件结构不像标准 IBKR Activity Statement CSV。");
+    warnings.push("sparseReport");
   }
 
   return warnings;
@@ -734,12 +785,27 @@ function parseDividendSymbol(row = {}) {
 }
 
 function readCommission(row) {
-  return (
-    row["Comm/Fee"] ??
-    row["Commission"] ??
-    Object.entries(row).find(([key]) => key.toLowerCase().startsWith("comm"))?.[1] ??
-    "0"
-  );
+  return readTradeField(row, "commission").amount;
+}
+
+function readTradeField(row, kind) {
+  const keys = kind === "commission" ? ["Comm/Fee", "Commission"] : ["MTM P/L"];
+  const prefix = kind === "commission" ? /^Comm in (.+)$/i : /^MTM in (.+)$/i;
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== "") {
+      return { amount: toNumber(row[key]), currency: currencyCode(row.Currency), present: true };
+    }
+  }
+  const entry = Object.entries(row).find(([key]) => prefix.test(key));
+  if (entry) {
+    return { amount: toNumber(entry[1]), currency: currencyCode(entry[0].match(prefix)[1]), present: entry[1] !== "" };
+  }
+  return { amount: 0, currency: currencyCode(row.Currency), present: false };
+}
+
+function convertTradeField(row, rates, kind) {
+  const field = readTradeField(row, kind);
+  return field.amount === 0 ? 0 : field.amount * getRate(rates, field.currency);
 }
 
 function readValue(row, keys) {

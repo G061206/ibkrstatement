@@ -1,11 +1,12 @@
 {
   "name": "ibkr-analytics-studio",
-  "version": "2.1.6",
+  "version": "2.1.7",
   "private": true,
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "check": "node --check src/encoding.js && node --check src/parser.js && node --check src/reportLanguage.js && node --check src/app.js",
+    "check": "node --check src/encoding.js && node --check src/parser.js && node --check src/reportLanguage.js && node --check src/i18n.js && node --check src/app.js",
+    "test": "node --test tests/*.test.js",
     "serve": "node serve.mjs"
   }
 }

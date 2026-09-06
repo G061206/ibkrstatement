@@ -1,6 +1,7 @@
-import { decodeReportFile } from "./encoding.js?v=2.1.6";
-import { isChineseIbkrReport } from "./reportLanguage.js?v=2.1.6";
-import { parseIbkrReport } from "./parser.js?v=2.1.6";
+import { translate } from "./i18n.js?v=2.1.7";
+import { decodeReportFile } from "./encoding.js?v=2.1.7";
+import { isChineseIbkrReport } from "./reportLanguage.js?v=2.1.7";
+import { parseIbkrReport } from "./parser.js?v=2.1.7";
 
 const app = document.querySelector("#app");
 
@@ -259,7 +260,7 @@ function renderUpload() {
             <p>${t("privacyBody")}</p>
           </div>
         </section>
-        ${state.error ? `<div class="error-banner">${escapeHtml(state.error)}</div>` : ""}
+        ${state.error ? `<div class="error-banner">${escapeHtml(displayError(state.error))}</div>` : ""}
         <section class="upload-grid">
           <div class="upload-stack">
             <label class="dropzone" id="dropzone" for="fileInput">
@@ -452,7 +453,7 @@ function renderShareDialog() {
           <button class="primary-button" id="downloadShareImageButton" type="button">${icon("download")}${t("downloadPng")}</button>
         </div>
         <div class="share-preview">
-          <canvas id="shareImageCanvas" width="${size.width}" height="${size.height}" aria-label="分享图预览"></canvas>
+          <canvas id="shareImageCanvas" width="${size.width}" height="${size.height}" aria-label="${tr("分享图预览")}"></canvas>
         </div>
       </section>
     </div>
@@ -474,31 +475,32 @@ function renderOverview(data) {
   return `
     <div class="content-stack">
       ${renderPageHeading(t("overviewHeading"), data, t("overviewSubtitle"))}
+      ${data.plSummary.total.total === null ? `<div class="error-banner">${tr("盈亏汇总数据缺失；相关指标显示为 —。")}</div>` : ""}
       <div class="grid-12">
-        ${renderKpi("期末净值", formatMoney(data.nav.total, currency), renderDateRange(data), "span-3")}
-        ${renderKpi("现金", formatMoney(data.nav.cash, currency), "Net Asset Value / Cash", "span-3")}
-        ${renderKpi("总盈亏", formatMoney(totalPL, currency), "已实现 + 未实现", "span-3", totalPL)}
-        ${renderKpi("时间加权收益", formatPercent(data.nav.rateOfReturn), "IBKR TWR", "span-3", data.nav.rateOfReturn)}
-        ${renderKpi("交易订单", formatNumber(data.tradeSummary.orderCount), `${formatNumber(data.tradeSummary.stockOrders)} 股票 / ${formatNumber(data.tradeSummary.forexOrders)} 外汇`, "span-3")}
-        ${renderKpi("当前持仓", formatNumber(data.positions.length), `${formatNumber(data.assetAllocation.length)} 个资产类别`, "span-3")}
-        ${renderKpi("识别区块", formatNumber(Object.keys(data.sectionStats).length), "CSV sections", "span-3")}
-        ${renderKpi("佣金费用", formatMoney(data.tradeSummary.totalCommissions, currency), "Trades summary", "span-3", -data.tradeSummary.totalCommissions)}
+        ${renderKpi(tr("期末净值"), formatMoney(data.nav.total, currency), renderDateRange(data), "span-3")}
+        ${renderKpi(tr("现金"), formatMoney(data.nav.cash, currency), "Net Asset Value / Cash", "span-3")}
+        ${renderKpi(tr("总盈亏"), formatMoney(totalPL, currency), tr("已实现 + 未实现"), "span-3", totalPL)}
+        ${renderKpi(tr("时间加权收益"), formatPercent(data.nav.rateOfReturn), "IBKR TWR", "span-3", data.nav.rateOfReturn)}
+        ${renderKpi(tr("交易订单"), formatNumber(data.tradeSummary.orderCount), `${formatNumber(data.tradeSummary.stockOrders)} ${t("stocks")} / ${formatNumber(data.tradeSummary.forexOrders)} ${t("forex")}`, "span-3")}
+        ${renderKpi(tr("当前持仓"), formatNumber(data.positions.length), `${formatNumber(data.assetAllocation.length)} ${tr("个资产类别")}`, "span-3")}
+        ${renderKpi(tr("识别区块"), formatNumber(Object.keys(data.sectionStats).length), "CSV sections", "span-3")}
+        ${renderKpi(tr("佣金费用"), formatMoney(data.tradeSummary.totalCommissions, currency), "Trades summary", "span-3", -data.tradeSummary.totalCommissions)}
       </div>
       <div class="grid-12">
         <section class="dashboard-card span-6">
-          <div class="card-header"><h2>资产配置</h2><span class="pill">${currency}</span></div>
+          <div class="card-header"><h2>${tr("资产配置")}</h2><span class="pill">${escapeHtml(currency)}</span></div>
           ${renderAllocation(portfolioAllocation, currency)}
         </section>
         <section class="dashboard-card span-6">
-          <div class="card-header"><h2>币种敞口</h2><span class="pill">${currency}</span></div>
+          <div class="card-header"><h2>${tr("币种敞口")}</h2><span class="pill">${escapeHtml(currency)}</span></div>
           ${renderAllocation(data.currencyExposure, currency)}
         </section>
         <section class="table-card span-7">
-          <div class="table-header"><h2>NAV 变化</h2></div>
-          ${renderSimpleTable(["项目", "金额"], data.navChange.map((row) => [row.label, signedMoney(row.value, currency)]), [false, true])}
+          <div class="table-header"><h2>${tr("NAV 变化")}</h2></div>
+          ${renderSimpleTable([tr("项目"), tr("金额")], data.navChange.map((row) => [tr(row.label), signedMoney(row.value, currency)]), [false, true])}
         </section>
         <section class="dashboard-card span-5">
-          <div class="card-header"><h2>资产配置占比</h2><span class="pill">${currency}</span></div>
+          <div class="card-header"><h2>${tr("资产配置占比")}</h2><span class="pill">${escapeHtml(currency)}</span></div>
           ${renderAllocationPie(portfolioAllocation, currency)}
         </section>
       </div>
@@ -513,18 +515,19 @@ function renderPerformance(data) {
   return `
     <div class="content-stack">
       ${renderPageHeading(t("performanceHeading"), data, t("performanceSubtitle"))}
+      ${data.plSummary.total.total === null ? `<div class="error-banner">${tr("盈亏汇总数据缺失；相关指标显示为 —。")}</div>` : ""}
       <div class="grid-12">
-        ${renderKpi("已实现盈亏", formatMoney(pl.realized, currency), "Realized P/L", "span-4 performance-kpi", pl.realized, {
+        ${renderKpi(tr("已实现盈亏"), formatMoney(pl.realized, currency), "Realized P/L", "span-4 performance-kpi", pl.realized, {
           label: t("returnRate"),
           value: `${formatSignedPercent(safePercent(pl.realized, data.nav.total))} / NAV`,
           toneValue: pl.realized
         })}
-        ${renderKpi("未实现盈亏", formatMoney(pl.unrealized, currency), "Unrealized P/L", "span-4 performance-kpi", pl.unrealized, {
+        ${renderKpi(tr("未实现盈亏"), formatMoney(pl.unrealized, currency), "Unrealized P/L", "span-4 performance-kpi", pl.unrealized, {
           label: t("returnRate"),
           value: `${formatSignedPercent(safePercent(pl.unrealized, data.nav.total))} / NAV`,
           toneValue: pl.unrealized
         })}
-        ${renderKpi("总盈亏", formatMoney(pl.total, currency), "Total P/L", "span-4 is-featured performance-kpi", pl.total, {
+        ${renderKpi(tr("总盈亏"), formatMoney(pl.total, currency), "Total P/L", "span-4 is-featured performance-kpi", pl.total, {
           label: t("returnRate"),
           value: `${formatSignedPercent(safePercent(pl.total, data.nav.total))} / NAV`,
           toneValue: pl.total
@@ -535,23 +538,23 @@ function renderPerformance(data) {
               <h2>${t("plDistribution")}</h2>
               <p class="card-kicker">${t("plDistributionKicker")}</p>
             </div>
-            <span class="pill">${currency}</span>
+            <span class="pill">${escapeHtml(currency)}</span>
           </div>
           ${renderPlDistribution(data)}
         </section>
         <section class="table-card span-6">
-          <div class="table-header"><h2>主要贡献者</h2><span class="pill">${formatNumber(data.tickerPL.length)} tickers</span></div>
+          <div class="table-header"><h2>${tr("主要贡献者")}</h2><span class="pill">${formatNumber(data.tickerPL.length)} tickers</span></div>
           ${renderTopContributors(data, currency)}
         </section>
         <section class="dashboard-card chart-card span-12">
           <div class="card-header">
-            <h2>月度收入与支出</h2>
-            <span class="tag-list"><span class="pill">净额</span><span class="pill">费用</span></span>
+            <h2>${tr("月度收入与支出")}</h2>
+            <span class="tag-list"><span class="pill">${tr("净额")}</span><span class="pill">${tr("费用")}</span></span>
           </div>
           ${renderMonthlyChart(data.monthlySummary, currency)}
         </section>
         <section class="table-card span-12">
-          <div class="table-header"><h2>已实现交易排行</h2></div>
+          <div class="table-header"><h2>${tr("已实现交易排行")}</h2></div>
           ${renderRealizedTrades(data, currency)}
         </section>
       </div>
@@ -577,7 +580,7 @@ function renderDailyStats(data) {
       ${renderPageHeading(t("dailyHeading"), data, t("dailySubtitle"))}
       <div class="daily-toolbar">
         <label class="month-select-label">
-          <span>月份</span>
+          <span>${tr("月份")}</span>
           <select class="month-select" id="dailyMonthSelect" ${months.length ? "" : "disabled"}>
             ${months.map((month) => `<option value="${escapeAttribute(month)}"${month === selectedMonth ? " selected" : ""}>${escapeHtml(formatMonthLabel(month))}</option>`).join("")}
           </select>
@@ -585,21 +588,21 @@ function renderDailyStats(data) {
       </div>
       <div class="grid-12">
         <section class="dashboard-card span-7 daily-calendar-card">
-          <div class="card-header"><h2>盈亏日历</h2><span class="pill">${escapeHtml(selectedMonth || "-")}</span></div>
+          <div class="card-header"><h2>${tr("盈亏日历")}</h2><span class="pill">${escapeHtml(selectedMonth || "-")}</span></div>
           ${renderProfitCalendar(monthRows, selectedMonth, currency)}
         </section>
         <section class="dashboard-card span-5 daily-trades-card">
-          <div class="card-header"><h2>每日交易统计</h2><span class="pill">${formatNumber(totalTrades)} trades</span></div>
+          <div class="card-header"><h2>${tr("每日交易统计")}</h2><span class="pill">${formatNumber(totalTrades)} trades</span></div>
           ${renderDailyTradeChart(monthRows, selectedMonth)}
           <div class="daily-stat-grid">
-            ${renderDailyStat("总交易笔数", formatNumber(totalTrades))}
-            ${renderDailyStat("总成交额", formatMoney(totalGross, currency))}
-            ${renderDailyStat("日均交易", formatNumber(averageTrades, 1))}
-            ${renderDailyStat("已实现盈亏", signedMoney(totalRealized, currency), totalRealized)}
+            ${renderDailyStat(tr("总交易笔数"), formatNumber(totalTrades))}
+            ${renderDailyStat(tr("总成交额"), formatMoney(totalGross, currency))}
+            ${renderDailyStat(tr("日均交易"), formatNumber(averageTrades, 1))}
+            ${renderDailyStat(tr("已实现盈亏"), signedMoney(totalRealized, currency), totalRealized)}
           </div>
         </section>
         <section class="table-card span-12">
-          <div class="table-header"><h2>交易流水</h2><span class="pill">${formatNumber(tradeRows.length)} rows</span></div>
+          <div class="table-header"><h2>${tr("交易流水")}</h2><span class="pill">${formatNumber(tradeRows.length)} rows</span></div>
           ${renderDailyTradeTable(tradeRows, currency)}
         </section>
       </div>
@@ -621,26 +624,26 @@ function renderPositions(data) {
       ${renderPageHeading(t("positionsHeading"), data, t("positionsSubtitle"))}
       <div class="grid-12">
         <section class="dashboard-card span-4">
-          <div class="card-header"><h2>持仓资产分布</h2><span class="pill">${formatNumber(rows.length)} rows</span></div>
+          <div class="card-header"><h2>${tr("持仓资产分布")}</h2><span class="pill">${formatNumber(rows.length)} rows</span></div>
           ${renderAllocation(summarizeVisiblePositions(rows, "assetCategory"), currency)}
         </section>
         <section class="dashboard-card span-4">
-          <div class="card-header"><h2>方向</h2></div>
+          <div class="card-header"><h2>${tr("方向")}</h2></div>
           ${renderAllocation(summarizeVisiblePositions(rows, "side"), currency)}
         </section>
         <section class="dashboard-card span-4">
-          <div class="card-header"><h2>币种</h2></div>
+          <div class="card-header"><h2>${tr("币种")}</h2></div>
           ${renderAllocation(summarizeVisiblePositions(rows, "currency"), currency)}
         </section>
         <section class="table-card span-12">
           <div class="table-header"><h2>Open Positions</h2><span class="pill">${formatNumber(rows.length)} / ${formatNumber(data.positions.length)}</span></div>
-          ${rows.length ? renderPositionsTable(rows, currency) : renderEmpty("没有匹配的持仓。")}
+          ${rows.length ? renderPositionsTable(rows, currency) : renderEmpty(tr("没有匹配的持仓。"))}
         </section>
         <section class="dashboard-card span-12 position-chart-card">
           <div class="card-header">
             <div>
-              <h2>持仓资产分布</h2>
-              <p class="card-kicker">按标的市值与现金统计</p>
+              <h2>${tr("持仓资产分布")}</h2>
+              <p class="card-kicker">${tr("按标的市值与现金统计")}</p>
             </div>
           </div>
           ${renderPositionAssetPie(rows, currency, data.nav.cash)}
@@ -661,15 +664,15 @@ function renderDataQuality(data) {
       ${renderPageHeading(t("dataHeading"), data, t("dataSubtitle"))}
       <div class="grid-12">
         <section class="table-card span-6">
-          <div class="table-header"><h2>已解析 CSV 区块</h2><span class="pill">${formatNumber(sectionRows.length)}</span></div>
-          ${renderSimpleTable(["区块", "行数"], sectionRows, [false, true])}
+          <div class="table-header"><h2>${tr("已解析 CSV 区块")}</h2><span class="pill">${formatNumber(sectionRows.length)}</span></div>
+          ${renderSimpleTable([tr("区块"), tr("行数")], sectionRows, [false, true])}
         </section>
         <section class="table-card span-6">
-          <div class="table-header"><h2>基础货币换算</h2><span class="pill">${data.baseCurrency || "USD"}</span></div>
-          ${renderSimpleTable(["币种", "汇率"], rateRows, [false, true])}
+          <div class="table-header"><h2>${tr("基础货币换算")}</h2><span class="pill">${escapeHtml(data.baseCurrency || "USD")}</span></div>
+          ${renderSimpleTable([tr("币种"), tr("汇率")], rateRows, [false, true])}
         </section>
         <section class="dashboard-card span-12">
-          <div class="card-header"><h2>解析诊断</h2></div>
+          <div class="card-header"><h2>${tr("解析诊断")}</h2></div>
           ${renderWarnings(data.warnings)}
         </section>
       </div>
@@ -731,11 +734,11 @@ function renderPlDistribution(data) {
       <div class="pl-total-panel">
         <div>
           <span>${t("total")}</span>
-          <strong class="${valueClass(total.total)}">${formatMoney(total.total, data.baseCurrency)}</strong>
+          <strong class="${valueClass(total.total)}">${escapeHtml(formatMoney(total.total, data.baseCurrency))}</strong>
         </div>
         <div class="pl-total-split">
-          <span>${t("realized")} <b class="${valueClass(total.realized)}">${formatMoney(total.realized, data.baseCurrency)}</b></span>
-          <span>${t("unrealized")} <b class="${valueClass(total.unrealized)}">${formatMoney(total.unrealized, data.baseCurrency)}</b></span>
+          <span>${t("realized")} <b class="${valueClass(total.realized)}">${escapeHtml(formatMoney(total.realized, data.baseCurrency))}</b></span>
+          <span>${t("unrealized")} <b class="${valueClass(total.unrealized)}">${escapeHtml(formatMoney(total.unrealized, data.baseCurrency))}</b></span>
         </div>
       </div>
       <div class="pl-category-grid">
@@ -750,7 +753,7 @@ function renderPlCategory(label, value, currency, maxAbs) {
     <div class="pl-category-card">
       <div class="pl-category-head">
         <span>${escapeHtml(label)}</span>
-        <strong class="${valueClass(value.total)}">${formatMoney(value.total, currency)}</strong>
+        <strong class="${valueClass(value.total)}">${escapeHtml(formatMoney(value.total, currency))}</strong>
       </div>
       ${renderPlMetric(t("realized"), value.realized, currency, maxAbs)}
       ${renderPlMetric(t("unrealized"), value.unrealized, currency, maxAbs)}
@@ -765,7 +768,7 @@ function renderPlMetric(label, value, currency, maxAbs) {
     <div class="pl-metric">
       <div class="pl-metric-top">
         <span>${escapeHtml(label)}</span>
-        <strong class="${valueClass(value)}">${formatMoney(value, currency)}</strong>
+        <strong class="${valueClass(value)}">${escapeHtml(formatMoney(value, currency))}</strong>
       </div>
       <div class="pl-metric-track" aria-hidden="true">
         <span class="pl-metric-fill ${value < 0 ? "is-negative" : "is-positive"}" style="width:${width}%"></span>
@@ -783,11 +786,11 @@ function renderTopContributors(data, currency) {
     .slice(0, 8)
     .map((row) => [
       `<strong>${escapeHtml(row.ticker)}</strong>`,
-      `<span class="${valueClass(row.realizedPL)}">${signedMoney(row.realizedPL, currency)}</span>`,
+      `<span class="${valueClass(row.realizedPL)}">${escapeHtml(signedMoney(row.realizedPL, currency))}</span>`,
       `${formatPercent((Math.abs(row.realizedPL) / totalAbs) * 100)}`
     ]);
 
-  return rows.length ? renderSimpleTable(["代码", "总盈亏", "贡献百分比"], rows, [false, true, true], true) : renderEmpty("暂无 ticker 贡献数据。");
+  return rows.length ? renderSimpleTable([tr("代码"), tr("总盈亏"), tr("贡献百分比")], rows, [false, true, true], true) : renderEmpty(tr("暂无 ticker 贡献数据。"));
 }
 
 function renderRealizedTrades(data, currency) {
@@ -798,9 +801,9 @@ function renderRealizedTrades(data, currency) {
       formatDate(row.date),
       escapeHtml(row.symbol),
       escapeHtml(row.category),
-      `<span class="${valueClass(row.realizedPL)}">${signedMoney(row.realizedPL, row.currency || currency)}</span>`
+      `<span class="${valueClass(row.realizedPL)}">${escapeHtml(signedMoney(row.realizedPL, row.currency || currency))}</span>`
     ]);
-  return rows.length ? renderSimpleTable(["日期", "代码", "类别", "已实现盈亏"], rows, [false, false, false, true], true) : renderEmpty("暂无已实现交易。");
+  return rows.length ? renderSimpleTable([tr("日期"), tr("代码"), tr("类别"), tr("已实现盈亏")], rows, [false, false, false, true], true) : renderEmpty(tr("暂无已实现交易。"));
 }
 
 function renderPositionsTable(rows, currency) {
@@ -809,13 +812,13 @@ function renderPositionsTable(rows, currency) {
     escapeHtml(row.assetCategory || "-"),
     sideLabel(row.side),
     formatNumber(row.quantity, 4),
-    formatMoney(row.value, row.currency || currency),
-    formatMoney(row.costBasis, row.currency || currency),
-    `<span class="${valueClass(row.dividends)}">${formatMoney(row.dividends || 0, row.currency || currency)}</span>`,
-    `<span class="${valueClass(row.unrealizedPL)}">${signedMoney(row.unrealizedPL, row.currency || currency)}</span>`,
+    escapeHtml(formatMoney(row.value, row.currency || currency)),
+    escapeHtml(formatMoney(row.costBasis, row.currency || currency)),
+    `<span class="${valueClass(row.dividends)}">${escapeHtml(formatMoney(row.dividends || 0, row.currency || currency))}</span>`,
+    `<span class="${valueClass(row.unrealizedPL)}">${escapeHtml(signedMoney(row.unrealizedPL, row.currency || currency))}</span>`,
     escapeHtml(row.currency || currency)
   ]);
-  return renderSimpleTable(["标的", "资产", "方向", "数量", "市值", "成本", "股息", "未实现", "币种"], tableRows, [false, false, false, true, true, true, true, true, false], true);
+  return renderSimpleTable([tr("标的"), tr("资产"), tr("方向"), tr("数量"), tr("市值"), tr("成本"), tr("股息"), tr("未实现"), tr("币种")], tableRows, [false, false, false, true, true, true, true, true, false], true);
 }
 
 function buildPositionAssetAllocation(positions, cash = 0, currency = "USD") {
@@ -830,8 +833,8 @@ function buildPositionAssetAllocation(positions, cash = 0, currency = "USD") {
   }
 
   const cashValue = Number.isFinite(cash) && cash > 0 ? cash : 0;
-  if (cashValue && searchMatch(["Cash", "现金", currency])) {
-    const cashLabel = state.language === "en" ? "Cash" : "现金";
+  if (cashValue && searchMatch(["Cash", tr("现金"), currency])) {
+    const cashLabel = tr("现金");
     map.set(cashLabel, (map.get(cashLabel) || 0) + cashValue);
   }
 
@@ -849,7 +852,7 @@ function buildPositionAssetAllocation(positions, cash = 0, currency = "USD") {
 
 function renderPositionAssetPie(positions, currency, cash = 0) {
   const rows = buildPositionAssetAllocation(positions, cash, currency);
-  if (!rows.length) return renderEmpty("暂无持仓市值数据。");
+  if (!rows.length) return renderEmpty(tr("暂无持仓市值数据。"));
 
   let cursor = 0;
   const gradient = rows
@@ -864,7 +867,7 @@ function renderPositionAssetPie(positions, currency, cash = 0) {
 
   return `
     <div class="position-pie-layout">
-      <div class="asset-pie" style="--position-pie-gradient:${gradient}" role="img" aria-label="持仓资产分布"></div>
+      <div class="asset-pie" style="--position-pie-gradient:${gradient}" role="img" aria-label="${tr("持仓资产分布")}"></div>
       <div class="position-pie-legend">
         ${rows.map((row, index) => `
           <div class="position-pie-row">
@@ -874,18 +877,18 @@ function renderPositionAssetPie(positions, currency, cash = 0) {
             </span>
             <span class="position-pie-value">
               <strong>${formatPercent(row.weight * 100)}</strong>
-              <span>${formatMoney(row.value, currency)}</span>
+              <span>${escapeHtml(formatMoney(row.value, currency))}</span>
             </span>
           </div>
         `).join("")}
-        <div class="pie-total">${formatMoney(total, currency)}</div>
+        <div class="pie-total">${escapeHtml(formatMoney(total, currency))}</div>
       </div>
     </div>
   `;
 }
 
 function renderProfitCalendar(rows, month, currency) {
-  if (!month) return renderEmpty("暂无逐日交易数据。");
+  if (!month) return renderEmpty(tr("暂无逐日交易数据。"));
 
   const [year, monthNumber] = month.split("-").map(Number);
   const daysInMonth = getDaysInMonth(month);
@@ -904,7 +907,7 @@ function renderProfitCalendar(rows, month, currency) {
     const intensity = row ? Math.min(0.78, 0.16 + Math.abs(value) / maxAbs * 0.52) : 0;
     const tone = value > 0 ? "is-positive" : value < 0 ? "is-negative" : "";
     cells.push(`
-      <div class="calendar-cell ${tone}" style="--heat-alpha:${intensity.toFixed(2)}" title="${escapeAttribute(`${month}-${String(day).padStart(2, "0")}: ${signedMoney(value, currency)} · ${formatNumber(row?.tradeCount || 0)} trades`)}">
+      <div class="calendar-cell ${tone}" style="--heat-alpha:${intensity.toFixed(2)}" title="${escapeAttribute(`${month}-${String(day).padStart(2, "0")}: ${escapeHtml(signedMoney(value, currency))} · ${formatNumber(row?.tradeCount || 0)} trades`)}">
         <span class="calendar-day">${day}</span>
         ${row ? `<strong class="${valueClass(value)}">${signedCalendarAmount(value)}</strong>` : ""}
       </div>
@@ -917,7 +920,7 @@ function renderProfitCalendar(rows, month, currency) {
 
   return `
     <div class="calendar-weekdays">
-      ${["日", "一", "二", "三", "四", "五", "六"].map((day) => `<span>${day}</span>`).join("")}
+      ${(state.language === "en" ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] : ["日", "一", "二", "三", "四", "五", "六"]).map((day) => `<span>${day}</span>`).join("")}
     </div>
     <div class="profit-calendar">
       ${cells.join("")}
@@ -926,7 +929,7 @@ function renderProfitCalendar(rows, month, currency) {
 }
 
 function renderDailyTradeChart(rows, month) {
-  if (!month) return renderEmpty("暂无逐日交易数据。");
+  if (!month) return renderEmpty(tr("暂无逐日交易数据。"));
   const daysInMonth = getDaysInMonth(month);
   const byDay = new Map(rows.map((row) => [row.day, row]));
   const maxCount = Math.max(1, ...rows.map((row) => row.tradeCount));
@@ -957,19 +960,19 @@ function renderDailyStat(label, value, tone = null) {
 }
 
 function renderDailyTradeTable(rows, currency) {
-  if (!rows.length) return renderEmpty("当前月份没有交易记录。");
+  if (!rows.length) return renderEmpty(tr("当前月份没有交易记录。"));
   const tableRows = rows.map((row) => [
     formatDateTime(row.dateTime),
     `<strong>${escapeHtml(row.baseSymbol || row.symbol || "-")}</strong>`,
     sideBadge(row.side),
     escapeHtml(row.assetCategory || "-"),
     formatNumber(Math.abs(row.quantity), 4),
-    formatMoney(row.price, row.currency || currency),
-    formatMoney(row.grossValue, row.currency || currency),
-    formatMoney(row.commission, row.currency || currency),
-    `<span class="${valueClass(row.realizedPL)}">${signedMoney(row.realizedPL, row.currency || currency)}</span>`
+    escapeHtml(formatMoney(row.price, row.currency || currency)),
+    escapeHtml(formatMoney(row.grossValue, row.currency || currency)),
+    escapeHtml(formatMoney(row.commission, row.commissionCurrency || row.currency || currency)),
+    `<span class="${valueClass(row.realizedPL)}">${escapeHtml(signedMoney(row.realizedPL, row.currency || currency))}</span>`
   ]);
-  return renderSimpleTable(["成交时间", "股票代码", "方向", "资产", "数量", "成交价", "成交金额", "佣金", "已实现盈亏"], tableRows, [false, false, false, false, true, true, true, true, true], true);
+  return renderSimpleTable([tr("成交时间"), tr("股票代码"), tr("方向"), tr("资产"), tr("数量"), tr("成交价"), tr("成交金额"), tr("佣金"), tr("已实现盈亏")], tableRows, [false, false, false, false, true, true, true, true, true], true);
 }
 
 function renderSimpleTable(headers, rows, numericColumns = [], allowHtml = false) {
@@ -992,7 +995,7 @@ function renderSimpleTable(headers, rows, numericColumns = [], allowHtml = false
 }
 
 function renderAllocation(rows, currency) {
-  if (!rows || !rows.length) return renderEmpty("暂无可展示的数据。");
+  if (!rows || !rows.length) return renderEmpty(tr("暂无可展示的数据。"));
   const max = Math.max(1, ...rows.map((row) => Math.abs(row.value)));
   return `
     <div class="allocation-grid">
@@ -1000,7 +1003,7 @@ function renderAllocation(rows, currency) {
         <div class="allocation-row">
           <strong>${escapeHtml(displayGroup(row.name))}</strong>
           <div class="mini-track"><div class="mini-fill" style="width:${Math.max(2, Math.abs(row.value) / max * 100)}%"></div></div>
-          <span class="numeric mono">${formatMoney(row.value, currency)} · ${formatPercent((row.weight || 0) * 100)}</span>
+          <span class="numeric mono">${escapeHtml(formatMoney(row.value, currency))} · ${formatPercent((row.weight || 0) * 100)}</span>
         </div>
       `).join("")}
     </div>
@@ -1032,14 +1035,14 @@ function buildPortfolioAllocation(data) {
 }
 
 function renderAllocationPie(rows, currency) {
-  if (!rows || !rows.length) return renderEmpty("暂无可展示的数据。");
+  if (!rows || !rows.length) return renderEmpty(tr("暂无可展示的数据。"));
   const sourceRows = rows.filter((row) => Math.abs(row.value) > 0);
-  if (!sourceRows.length) return renderEmpty("暂无可展示的数据。");
+  if (!sourceRows.length) return renderEmpty(tr("暂无可展示的数据。"));
 
   const total = sourceRows.reduce((sum, row) => sum + Math.abs(row.value), 0) || 1;
   const topRows = sourceRows.slice(0, 5);
   const otherValue = sourceRows.slice(5).reduce((sum, row) => sum + Math.abs(row.value), 0);
-  const pieRows = otherValue > 0 ? [...topRows, { name: "其他", value: otherValue, weight: otherValue / total }] : topRows;
+  const pieRows = otherValue > 0 ? [...topRows, { name: tr("其他"), value: otherValue, weight: otherValue / total }] : topRows;
   let cursor = 0;
   const segments = pieRows.map((row, index) => {
     const percent = row.weight || Math.abs(row.value) / total;
@@ -1051,7 +1054,7 @@ function renderAllocationPie(rows, currency) {
 
   return `
     <div class="allocation-pie">
-      <div class="pie-visual" style="--pie-gradient:${segments.join(", ")};" aria-label="资产配置">
+      <div class="pie-visual" style="--pie-gradient:${segments.join(", ")};" aria-label="${tr("资产配置")}">
         <span>${formatPercent(100)}</span>
       </div>
       <div class="pie-legend">
@@ -1067,21 +1070,21 @@ function renderAllocationPie(rows, currency) {
             </div>
           `;
         }).join("")}
-        <div class="pie-total">${formatMoney(total, currency)}</div>
+        <div class="pie-total">${escapeHtml(formatMoney(total, currency))}</div>
       </div>
     </div>
   `;
 }
 
 function renderMonthlyChart(rows, currency) {
-  if (!rows || !rows.length) return renderEmpty("暂无月度数据。");
+  if (!rows || !rows.length) return renderEmpty(tr("暂无月度数据。"));
   const max = Math.max(1, ...rows.map((row) => Math.max(Math.abs(row.net), row.commissions + row.fees)));
   return `
-    <div class="monthly-chart" aria-label="月度净额图表">
+    <div class="monthly-chart" aria-label="${tr("月度净额图表")}">
       ${rows.slice(-12).map((row) => {
         const expense = Math.max(0, row.commissions + row.fees);
         return `
-          <div class="chart-column" title="${escapeAttribute(`${row.month}: ${formatMoney(row.net, currency)}`)}">
+          <div class="chart-column" title="${escapeAttribute(`${row.month}: ${escapeHtml(formatMoney(row.net, currency))}`)}">
             <div class="chart-bar" style="height:${Math.max(3, Math.abs(row.net) / max * 150)}px"></div>
             <div class="chart-bar expense" style="height:${Math.max(3, expense / max * 80)}px"></div>
             <div class="chart-label">${escapeHtml(shortMonth(row.month))}</div>
@@ -1094,7 +1097,7 @@ function renderMonthlyChart(rows, currency) {
 
 function renderWarnings(warnings) {
   if (!warnings || !warnings.length) {
-    return `<div class="empty-state"><span><strong>数据结构正常</strong><br />未发现关键区块缺失。</span></div>`;
+    return `<div class="empty-state"><span><strong>${tr("数据结构正常")}</strong><br />${tr("未发现关键区块缺失。")}</span></div>`;
   }
   return `<div class="warning-list">${warnings.map((warning) => `<div class="warning-item">${escapeHtml(displayWarning(warning))}</div>`).join("")}</div>`;
 }
@@ -1107,7 +1110,7 @@ function renderFooter() {
   return `
     <footer class="footer">
       <div class="footer-inner">
-        <span>Github地址</span>
+        <span>${tr("Github地址")}</span>
         <a href="https://github.com/G061206/ibkrstatement" target="_blank" rel="noopener noreferrer">G061206/ibkrstatement</a>
       </div>
     </footer>
@@ -1255,6 +1258,16 @@ function applyLanguage() {
   document.documentElement.lang = state.language === "en" ? "en" : "zh-CN";
 }
 
+function tr(text) {
+  return translate(text, state.language);
+}
+
+function displayError(error) {
+  if (error?.code === "invalidCurrency") return tr("报表包含无效币种代码。请检查 Base Currency、Currency 和佣金/MTM 列标题。");
+  if (error?.code === "missingExchangeRate") return tr("缺少基础货币换算汇率：") + error.currency + tr("。请在报表中包含 Base Currency Exchange Rate 或 MTM 外汇汇率后重新导入。");
+  return tr(String(error || ""));
+}
+
 function t(key) {
   return copy[state.language]?.[key] || copy.zh[key] || key;
 }
@@ -1272,7 +1285,7 @@ async function readFile(file) {
 
 async function loadSample() {
   try {
-    const response = await fetch("./samples/ibkr-sample-demo.csv?v=2.1.6");
+    const response = await fetch("./samples/ibkr-sample-demo.csv?v=2.1.7");
     if (!response.ok) throw new Error("sample unavailable");
     parseText(await response.text(), "ibkr-sample-demo.csv");
   } catch (error) {
@@ -1316,7 +1329,8 @@ function parseText(text, sourceName) {
     state.shareOpen = new URLSearchParams(window.location.search).get("share") === "1";
     renderDashboard();
   } catch (error) {
-    state.error = "解析失败。请确认文件是 IBKR Activity Statement CSV/TXT，且包含 Header/Data 结构。";
+    state.data = null;
+    state.error = error.code ? { code: error.code, currency: error.currency } : "解析失败。请确认文件是 IBKR Activity Statement CSV/TXT，且包含 Header/Data 结构。";
     renderUpload();
   }
 }
@@ -1434,9 +1448,9 @@ function buildLegacyShareModel(data) {
   const totalPl = data.plSummary.total;
   const customName = state.shareName.trim();
   return {
-    name: state.shareHideName ? "*****" : (customName || data.accountInfo.name || "账户视图"),
+    name: state.shareHideName ? "*****" : (customName || data.accountInfo.name || tr("账户视图")),
     hideNav: state.shareHideNav,
-    account: data.accountInfo.account ? maskAccount(data.accountInfo.account) : "未识别账户",
+    account: data.accountInfo.account ? maskAccount(data.accountInfo.account) : tr("未识别账户"),
     period: data.accountInfo.period || renderDateRange(data),
     currency: data.baseCurrency || "USD",
     generatedDate: new Intl.DateTimeFormat(numberLocale(), {
@@ -1476,8 +1490,8 @@ function drawLegacyLandscapeShareImage(ctx, model, theme, logoImage) {
   drawLegacySharePill(ctx, `${model.currency} Base`, pillX, 176, theme, { tone: "brand" });
 
   drawLegacyShareHero(ctx, 60, 222, 440, 176, model, theme, { valueOffsetY: 62, valueScale: 0.92 });
-  drawLegacyShareMetric(ctx, 520, 222, 230, 80, "总盈亏", formatMoney(model.totalPl, model.currency), model.totalPl, theme);
-  drawLegacyShareMetric(ctx, 520, 318, 230, 80, "持仓数", formatNumber(model.positions), model.positions, theme);
+  drawLegacyShareMetric(ctx, 520, 222, 230, 80, tr("总盈亏"), formatMoney(model.totalPl, model.currency), model.totalPl, theme);
+  drawLegacyShareMetric(ctx, 520, 318, 230, 80, tr("持仓数"), formatNumber(model.positions), model.positions, theme);
   drawLegacyShareAllocation(ctx, 770, 222, 370, 176, model, theme, { compact: true });
   drawLegacyShareMonthlyTrend(ctx, 60, 422, 530, 146, model, theme, { compact: true });
   drawLegacyShareTickerList(ctx, 610, 422, 530, 146, model, theme, { rowHeight: 26 });
@@ -1500,10 +1514,10 @@ function drawLegacyPortraitShareImage(ctx, model, theme, logoImage) {
   drawLegacySharePill(ctx, model.period, 70, 346, theme, { scale: 1.18 });
 
   drawLegacyShareHero(ctx, 70, 435, 940, 220, model, theme, { scale: 1.28 });
-  drawLegacyShareMetric(ctx, 70, 685, 455, 112, "总盈亏", formatMoney(model.totalPl, model.currency), model.totalPl, theme, { scale: 1.12 });
-  drawLegacyShareMetric(ctx, 555, 685, 455, 112, "未实现盈亏", formatMoney(model.unrealizedPl, model.currency), model.unrealizedPl, theme, { scale: 1.12 });
-  drawLegacyShareMetric(ctx, 70, 820, 455, 112, "已实现盈亏", formatMoney(model.realizedPl, model.currency), model.realizedPl, theme, { scale: 1.12 });
-  drawLegacyShareMetric(ctx, 555, 820, 455, 112, "持仓数", formatNumber(model.positions), model.positions, theme, { scale: 1.12 });
+  drawLegacyShareMetric(ctx, 70, 685, 455, 112, tr("总盈亏"), formatMoney(model.totalPl, model.currency), model.totalPl, theme, { scale: 1.12 });
+  drawLegacyShareMetric(ctx, 555, 685, 455, 112, tr("未实现盈亏"), formatMoney(model.unrealizedPl, model.currency), model.unrealizedPl, theme, { scale: 1.12 });
+  drawLegacyShareMetric(ctx, 70, 820, 455, 112, tr("已实现盈亏"), formatMoney(model.realizedPl, model.currency), model.realizedPl, theme, { scale: 1.12 });
+  drawLegacyShareMetric(ctx, 555, 820, 455, 112, tr("持仓数"), formatNumber(model.positions), model.positions, theme, { scale: 1.12 });
   drawLegacyShareAllocation(ctx, 70, 970, 940, 285, model, theme, { scale: 1.18 });
   drawLegacyShareTickerList(ctx, 70, 1295, 940, 350, model, theme, { rowHeight: 50, scale: 1.18 });
   drawLegacyShareFooter(ctx, model, 70, 1684, 940, theme, { scale: 1.12 });
@@ -1569,7 +1583,7 @@ function drawLegacyShareBrand(ctx, theme, logoImage, x, y, options = {}) {
 function drawLegacyShareHero(ctx, x, y, width, height, model, theme, options = {}) {
   const scale = options.scale || 1;
   drawLegacySharePanel(ctx, x, y, width, height, theme);
-  drawLegacyShareText(ctx, "期末净值", x + 28, y + 26, {
+  drawLegacyShareText(ctx, tr("期末净值"), x + 28, y + 26, {
     size: 20 * scale,
     weight: 740,
     color: theme.muted,
@@ -1582,7 +1596,7 @@ function drawLegacyShareHero(ctx, x, y, width, height, model, theme, options = {
     color: model.hideNav ? theme.faint : theme.ink,
     maxWidth: width - 56
   });
-  drawLegacyShareText(ctx, model.hideNav ? "现金 *****" : `现金 ${formatMoney(model.cash, model.currency)}`, x + 28, y + height - 54, {
+  drawLegacyShareText(ctx, `${tr("现金")} ${model.hideNav ? "*****" : formatMoney(model.cash, model.currency)}`, x + 28, y + height - 54, {
     size: 18 * scale,
     weight: 700,
     color: theme.muted,
@@ -1627,7 +1641,7 @@ function drawLegacyShareAllocation(ctx, x, y, width, height, model, theme, optio
   const scale = options.scale || 1;
   const rows = model.allocation.slice(0, width > 500 ? 5 : 4);
   drawLegacySharePanel(ctx, x, y, width, height, theme);
-  drawLegacyShareText(ctx, "资产配置", x + 24, y + 22, {
+  drawLegacyShareText(ctx, tr("资产配置"), x + 24, y + 22, {
     size: 19 * scale,
     weight: 800,
     color: theme.ink,
@@ -1635,7 +1649,7 @@ function drawLegacyShareAllocation(ctx, x, y, width, height, model, theme, optio
   });
 
   if (!rows.length) {
-    drawLegacyShareText(ctx, "暂无持仓市值", x + 24, y + 70, {
+    drawLegacyShareText(ctx, tr("暂无持仓市值"), x + 24, y + 70, {
       size: 18 * scale,
       weight: 650,
       color: theme.muted,
@@ -1699,7 +1713,7 @@ function drawLegacyShareTickerList(ctx, x, y, width, height, model, theme, optio
   const maxAbs = Math.max(...rows.map((row) => Math.abs(row.realizedPL)), 1);
 
   drawLegacySharePanel(ctx, x, y, width, height, theme);
-  drawLegacyShareText(ctx, "贡献排行", x + 24, y + 22, {
+  drawLegacyShareText(ctx, tr("贡献排行"), x + 24, y + 22, {
     size: 19 * scale,
     weight: 800,
     color: theme.ink,
@@ -1707,7 +1721,7 @@ function drawLegacyShareTickerList(ctx, x, y, width, height, model, theme, optio
   });
 
   if (!rows.length) {
-    drawLegacyShareText(ctx, "暂无已平仓贡献", x + 24, y + 70, {
+    drawLegacyShareText(ctx, tr("暂无已平仓贡献"), x + 24, y + 70, {
       size: 17 * scale,
       weight: 650,
       color: theme.muted,
@@ -1755,7 +1769,7 @@ function drawLegacyShareMonthlyTrend(ctx, x, y, width, height, model, theme, opt
   const scale = options.scale || 1;
   const rows = model.monthlyRows;
   drawLegacySharePanel(ctx, x, y, width, height, theme);
-  drawLegacyShareText(ctx, "月度趋势", x + 24, y + 20, {
+  drawLegacyShareText(ctx, tr("月度趋势"), x + 24, y + 20, {
     size: 19 * scale,
     weight: 800,
     color: theme.ink,
@@ -1763,7 +1777,7 @@ function drawLegacyShareMonthlyTrend(ctx, x, y, width, height, model, theme, opt
   });
 
   if (!rows.length) {
-    drawLegacyShareText(ctx, "暂无月度数据", x + 24, y + 66, {
+    drawLegacyShareText(ctx, tr("暂无月度数据"), x + 24, y + 66, {
       size: 17 * scale,
       weight: 650,
       color: theme.muted,
@@ -1812,7 +1826,7 @@ function drawLegacyShareFooter(ctx, model, x, y, width, theme, options = {}) {
     color: theme.faint,
     maxWidth: width * 0.6
   });
-  drawLegacyShareText(ctx, `生成于 ${model.generatedDate}`, x + width, y, {
+  drawLegacyShareText(ctx, `${tr("生成于")} ${model.generatedDate}`, x + width, y, {
     size: 17 * scale,
     weight: 720,
     color: theme.faint,
@@ -1951,41 +1965,44 @@ function renderDateRange(data) {
   if (data.accountInfo.period) return data.accountInfo.period;
   const first = formatDate(data.tradeSummary.firstTradeDate);
   const last = formatDate(data.tradeSummary.lastTradeDate);
-  return first && last ? `${first} - ${last}` : "未识别周期";
+  return first && last ? `${first} - ${last}` : tr("未识别周期");
 }
 
 function displayGroup(name) {
   const labels = {
-    Stocks: "股票",
-    "Equity and Index Options": "期权",
-    Forex: "外汇",
-    Cash: "现金",
-    Long: "多头",
-    Short: "空头"
+    Stocks: tr("股票"),
+    "Equity and Index Options": tr("期权"),
+    Options: tr("期权"),
+    Other: tr("其他"),
+    Forex: tr("外汇"),
+    Cash: tr("现金"),
+    Long: tr("多头"),
+    Short: tr("空头")
   };
   return labels[name] || name || "Unknown";
 }
 
 function sideLabel(side) {
-  if (side === "Long") return '<span class="pill positive">多头</span>';
-  if (side === "Short") return '<span class="pill negative">空头</span>';
+  if (side === "Long") return `<span class="pill positive">${tr("多头")}</span>`;
+  if (side === "Short") return `<span class="pill negative">${tr("空头")}</span>`;
   return `<span class="pill">${escapeHtml(side || "-")}</span>`;
 }
 
 function sideBadge(side) {
-  if (side === "Buy") return '<span class="pill positive">买入</span>';
-  if (side === "Sell") return '<span class="pill negative">卖出</span>';
+  if (side === "Buy") return `<span class="pill positive">${tr("买入")}</span>`;
+  if (side === "Sell") return `<span class="pill negative">${tr("卖出")}</span>`;
   return `<span class="pill">${escapeHtml(side || "-")}</span>`;
 }
 
 function displayWarning(warning) {
   const labels = {
-    missingAccountInfo: "未找到 Account Information 区块。",
-    missingNetAssetValue: "未找到 Net Asset Value 区块。",
-    missingTrades: "未找到 Trades 区块。",
-    missingPositions: "未找到 Open Positions 区块。",
-    missingPlSummary: "未找到 Realized & Unrealized Performance Summary 区块。",
-    sparseReport: "文件结构不像标准 IBKR Activity Statement CSV。"
+    missingAccountInfo: tr("未找到 Account Information 区块。"),
+    missingNetAssetValue: tr("未找到 Net Asset Value 区块。"),
+    missingTrades: tr("未找到 Trades 区块。"),
+    missingPositions: tr("未找到 Open Positions 区块。"),
+    missingPlSummary: tr("未找到 Realized & Unrealized Performance Summary 区块。"),
+    missingPlTotal: tr("缺少盈亏总计行。"),
+    sparseReport: tr("文件结构不像标准 IBKR Activity Statement CSV。")
   };
   return labels[warning] || warning;
 }
@@ -2001,6 +2018,7 @@ function valueClass(value) {
 }
 
 function signedMoney(value, currency) {
+  if (!Number.isFinite(value)) return "—";
   const amount = Number.isFinite(value) ? value : 0;
   const formatted = formatMoney(Math.abs(amount), currency);
   if (amount > 0) return `+${formatted}`;
@@ -2017,11 +2035,12 @@ function signedCalendarAmount(value) {
 }
 
 function safePercent(value, denominator) {
-  if (!Number.isFinite(value) || !Number.isFinite(denominator) || denominator === 0) return 0;
+  if (!Number.isFinite(value) || !Number.isFinite(denominator) || denominator === 0) return null;
   return (value / Math.abs(denominator)) * 100;
 }
 
 function formatMoney(value, currency = "USD") {
+  if (!Number.isFinite(value)) return "—";
   const amount = Number.isFinite(value) ? value : 0;
   try {
     return new Intl.NumberFormat(numberLocale(), {
@@ -2044,11 +2063,13 @@ function formatNumber(value, digits = 0) {
 }
 
 function formatPercent(value) {
+  if (!Number.isFinite(value)) return "—";
   const amount = Number.isFinite(value) ? value : 0;
   return `${formatNumber(amount, 2)}%`;
 }
 
 function formatSignedPercent(value) {
+  if (!Number.isFinite(value)) return "—";
   const amount = Number.isFinite(value) ? value : 0;
   return `${amount > 0 ? "+" : ""}${formatPercent(amount)}`;
 }
@@ -2096,7 +2117,7 @@ function getDaysInMonth(month) {
 function shortMonth(value) {
   if (!value) return "";
   const parts = String(value).split("-");
-  return parts.length > 1 ? `${Number(parts[1])}月` : value;
+  return parts.length > 1 ? new Intl.DateTimeFormat(numberLocale(), { month: "short" }).format(new Date(Number(parts[0]), Number(parts[1]) - 1, 1)) : value;
 }
 
 function numberLocale() {
