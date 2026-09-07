@@ -159,10 +159,11 @@ http://127.0.0.1:4187/
 
 ## 检查代码
 
-项目没有构建步骤，当前检查主要是 JavaScript 语法检查：
+项目没有构建步骤。运行语法检查和回归测试：
 
 ```powershell
 npm run check
+npm test
 ```
 
 该命令会检查：
@@ -170,7 +171,20 @@ npm run check
 - `src/encoding.js`
 - `src/parser.js`
 - `src/reportLanguage.js`
+- `src/i18n.js`
 - `src/app.js`
+
+测试使用 Node.js 内置测试运行器，无需安装依赖。覆盖佣金与外汇字段币种、汇率来源、分红归属、缺失盈亏、安全转义，以及五个页面和两种分享图的英文文案。
+
+### 统计与缺失数据处理
+
+- 股票和期权的 `Realized P/L` 已包含佣金，月度净额不重复扣减；佣金仍独立展示。外汇 MTM 不含佣金，在净额中计入对应佣金一次。
+- `Comm in XXX` 和 `MTM in XXX` 按列标题中的币种解释。导出的交易明细增加 `commissionCurrency` 和 `mtmCurrency`；月度 `forexCommissions` 为已计入净额的有符号外汇佣金。
+- 优先读取 `Base Currency Exchange Rate`（`Rate` 或 `Exchange Rate` 列），回退到 MTM Forex 汇率。多个日期取最新日期；交易和持仓目前使用该报表汇率换算，并非逐笔历史汇率。
+- 需要的汇率缺失或无效时停止导入，并提示补充汇率；不会默认按 1:1 换算。币种必须是三位字母代码。
+- 缺少盈亏汇总或总计行时，对应值在 JSON 中为 `null`，界面和分享图显示 `—`，并提供诊断。真实的零仍显示为 0。
+- `warnings` 使用语言无关的诊断代码，由界面按当前语言翻译。报表原始名称、代码和周期文本保留原样。
+- 股票股息只关联股票持仓，不重复关联到同一标的的期权。
 
 ## 目录结构
 
@@ -200,6 +214,7 @@ ibkr-analytics-studio/
 ### 核心文件说明
 
 - `src/app.js`：应用 UI、交互、图表、分享图和导出逻辑。
+- `src/i18n.js`：补充页面、诊断和分享图的中英文文案。
 - `src/parser.js`：IBKR CSV 解析、账户指标、持仓、交易、月度和每日统计。
 - `src/encoding.js`：文件读取和文本编码处理。
 - `src/reportLanguage.js`：报表语言检测。

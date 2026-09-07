@@ -1,7 +1,4 @@
-const assetVersion = new URL(import.meta.url).searchParams.get("v") || "";
-const parserUrl = new URL("./parser.js", import.meta.url);
-if (assetVersion) parserUrl.searchParams.set("v", assetVersion);
-const { parseCsvLine } = await import(parserUrl.href);
+import { parseCsvLine } from "./parser.js?v=2.1.11";
 
 const CJK_PATTERN = /[\u3400-\u9fff]/;
 const ENGLISH_SECTION_NAMES = new Set([
