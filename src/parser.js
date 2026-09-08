@@ -1,5 +1,133 @@
 const OPTION_ASSET = "Equity and Index Options";
 
+const SECTION_ALIASES = new Map([
+  ["账户信息", "Account Information"],
+  ["帐户信息", "Account Information"],
+  ["账户资料", "Account Information"],
+  ["净资产值", "Net Asset Value"],
+  ["净资产价值", "Net Asset Value"],
+  ["资产净值", "Net Asset Value"],
+  ["净资产值变更", "Change in NAV"],
+  ["资产净值变更", "Change in NAV"],
+  ["按市值计算的表现总结", "Mark-to-Market Performance Summary"],
+  ["按市值计算的业绩摘要", "Mark-to-Market Performance Summary"],
+  ["按市值计价业绩摘要", "Mark-to-Market Performance Summary"],
+  ["已实现和未实现的表现总结", "Realized & Unrealized Performance Summary"],
+  ["已实现和未实现业绩摘要", "Realized & Unrealized Performance Summary"],
+  ["未平仓持仓", "Open Positions"],
+  ["未平仓头寸", "Open Positions"],
+  ["交易", "Trades"],
+  ["成交", "Trades"],
+  ["股息", "Dividends"],
+  ["利息", "Interest"],
+  ["费用", "Fees"],
+  ["外汇盈亏明细", "Forex P/L Details"],
+  ["外汇损益明细", "Forex P/L Details"],
+  ["基础货币汇率", "Base Currency Exchange Rate"],
+  ["基础货币兑换率", "Base Currency Exchange Rate"],
+  ["股票收益提升计划证券出借赚取费用详情", "Stock Yield Enhancement Program Securities Lent Interest Details"]
+]);
+
+const HEADER_ALIASES = new Map([
+  ["域名称", "Field Name"],
+  ["字段名称", "Field Name"],
+  ["域值", "Field Value"],
+  ["字段值", "Field Value"],
+  ["资产类型", "Asset Class"],
+  ["资产分类", "Asset Category"],
+  ["当前合计", "Current Total"],
+  ["时间加权的收益率", "Time Weighted Rate of Return"],
+  ["时间加权收益率", "Time Weighted Rate of Return"],
+  ["当前 价格", "Current Price"],
+  ["当前价格", "Current Price"],
+  ["已实现的 总数", "Realized Total"],
+  ["已实现的总数", "Realized Total"],
+  ["未实现的 总数", "Unrealized Total"],
+  ["未实现的总数", "Unrealized Total"],
+  ["总数", "Total"],
+  ["货币", "Currency"],
+  ["日期", "Date"],
+  ["日期/时间", "Date/Time"],
+  ["描述", "Description"],
+  ["金额", "Amount"],
+  ["数量", "Quantity"],
+  ["合约乘数", "Mult"],
+  ["乘数", "Mult"],
+  ["成本价格", "Cost Price"],
+  ["成本基础", "Cost Basis"],
+  ["收盘价格", "Close Price"],
+  ["价值", "Value"],
+  ["未实现的损益", "Unrealized P/L"],
+  ["未实现盈亏", "Unrealized P/L"],
+  ["交易价格", "T. Price"],
+  ["收益", "Proceeds"],
+  ["佣金/税", "Comm/Fee"],
+  ["基础", "Basis"],
+  ["已实现的损益", "Realized P/L"],
+  ["已实现盈亏", "Realized P/L"],
+  ["按市值计算的损益", "MTM P/L"],
+  ["起息日", "Value Date"],
+  ["股票收益提升计划费用 客户赚取的", "Interest Paid to Customer"],
+  ["股票收益提升计划费用客户赚取的", "Interest Paid to Customer"],
+  ["汇率", "Rate"],
+  ["兑换率", "Exchange Rate"],
+  ["DataDiscriminator", "DataDiscriminator"]
+]);
+
+const FIELD_NAME_ALIASES = new Map([
+  ["名称", "Name"],
+  ["账户", "Account"],
+  ["帐户", "Account"],
+  ["基础货币", "Base Currency"],
+  ["基本货币", "Base Currency"],
+  ["期间", "Period"],
+  ["开始价值", "Starting Value"],
+  ["期初价值", "Starting Value"],
+  ["按市值计价", "Mark-to-Market"],
+  ["存款和取款", "Deposits & Withdrawals"],
+  ["股票赠与活动", "Stock Grant Activity"],
+  ["股息", "Dividends"],
+  ["代扣税款", "Withholding Tax"],
+  ["利息", "Interest"],
+  ["应计利息的变化", "Change in Interest Accruals"],
+  ["应计股息的变化", "Change in Dividend Accruals"],
+  ["其它费用", "Other Fees"],
+  ["其他费用", "Other Fees"],
+  ["佣金", "Commissions"],
+  ["销售税", "Sales Tax"],
+  ["其它外汇折算", "Other FX Translations"],
+  ["其他外汇折算", "Other FX Translations"],
+  ["结束价值", "Ending Value"],
+  ["期末价值", "Ending Value"]
+]);
+
+const ASSET_CATEGORY_ALIASES = new Map([
+  ["股票", "Stocks"],
+  ["外汇", "Forex"],
+  ["期权", OPTION_ASSET],
+  ["股票和指数期权", OPTION_ASSET],
+  ["权益和指数期权", OPTION_ASSET],
+  ["股权和指数期权", OPTION_ASSET],
+  ["总数", "Total"],
+  ["合计", "Total"],
+  ["总计（全部资产）", "Total (All Assets)"],
+  ["总计(全部资产)", "Total (All Assets)"]
+]);
+
+const ASSET_CLASS_ALIASES = new Map([
+  ["现金", "Cash"],
+  ["总数", "Total"],
+  ["合计", "Total"]
+]);
+
+const ROW_TYPE_ALIASES = new Map([
+  ["标题", "Header"],
+  ["表头", "Header"],
+  ["数据", "Data"],
+  ["资料", "Data"],
+  ["明细", "Data"]
+]);
+
 export class ReportError extends Error {
   constructor(code, currency = "") {
     super(code);
@@ -88,14 +216,14 @@ function collectSections(csvText) {
 
     if (columns.length < 2) continue;
 
-    const sectionName = columns[0];
-    const rowType = columns[1];
+    const sectionName = normalizeSectionName(columns[0]);
+    const rowType = ROW_TYPE_ALIASES.get(columns[1]) || columns[1];
 
     if (rowType === "Header") {
       if (currentBlock) blocks.push(currentBlock);
       currentBlock = {
         section: sectionName,
-        headers: columns,
+        headers: columns.map((header, index) => normalizeHeader(sectionName, header, index, columns)),
         rows: []
       };
       continue;
@@ -114,13 +242,52 @@ function collectSections(csvText) {
     for (const dataRow of block.rows) {
       const row = {};
       block.headers.forEach((header, index) => {
-        if (header) row[header] = (dataRow[index] ?? "").trim();
+        if (header) row[header] = normalizeCellValue(header, dataRow[index]);
       });
       sections[block.section].push(row);
     }
 
     return sections;
   }, {});
+}
+
+function normalizeSectionName(value) {
+  const name = String(value || "").trim();
+  return SECTION_ALIASES.get(name) || name;
+}
+
+function normalizeHeader(section, value, index, rawHeaders) {
+  const header = String(value || "").trim().replace(/\s+/g, " ");
+  if (!header) return "";
+
+  if (header === "代码") {
+    const codeIndexes = rawHeaders
+      .map((item, itemIndex) => String(item || "").trim() === "代码" ? itemIndex : -1)
+      .filter((itemIndex) => itemIndex >= 0);
+    if (codeIndexes.length > 1 && index === codeIndexes.at(-1)) return "Code";
+    return section === "Codes" ? "Code" : "Symbol";
+  }
+
+  const commissionCurrency = header.match(/^佣金(?:\/税)?\s+([A-Z]{3})$/i);
+  if (commissionCurrency) return `Comm in ${commissionCurrency[1].toUpperCase()}`;
+
+  const mtmCurrency = header.match(/^(?:以市值计[（(]MTM[）)]|按市值计价|按市值计算的损益)\s+([A-Z]{3})$/i);
+  if (mtmCurrency) return `MTM in ${mtmCurrency[1].toUpperCase()}`;
+
+  return HEADER_ALIASES.get(header) || header;
+}
+
+function normalizeCellValue(header, value) {
+  const clean = String(value ?? "").trim();
+  if (header === "Field Name") return FIELD_NAME_ALIASES.get(clean) || clean;
+  if (header === "Asset Category") return ASSET_CATEGORY_ALIASES.get(clean) || clean;
+  if (header === "Asset Class") return ASSET_CLASS_ALIASES.get(clean) || clean;
+  if (header === "Currency" && (clean === "总数" || clean === "合计")) return "Total";
+  if (header === "DataDiscriminator") {
+    if (["订单", "交易", "成交"].includes(clean)) return "Order";
+    if (["汇总", "摘要", "总结"].includes(clean)) return "Summary";
+  }
+  return clean;
 }
 
 function splitCsvRows(text) {
@@ -256,22 +423,26 @@ function parseNetAssetValue(rows = [], baseCurrency) {
 function parseNavChange(rows = []) {
   const map = new Map(rows.map((row) => [row["Field Name"], row["Field Value"]]));
   const fields = [
-    ["startingValue", "期初净值", "Starting Value"],
-    ["markToMarket", "盯市变化", "Mark-to-Market"],
-    ["depositsAndWithdrawals", "出入金", "Deposits & Withdrawals"],
-    ["interest", "利息", "Interest"],
-    ["changeInInterestAccruals", "应计利息", "Change in Interest Accruals"],
-    ["otherFees", "其他费用", "Other Fees"],
-    ["commissions", "佣金", "Commissions"],
-    ["salesTax", "销售税", "Sales Tax"],
-    ["otherFXTranslations", "汇兑折算", "Other FX Translations"],
-    ["endingValue", "期末净值", "Ending Value"]
+    ["startingValue", "期初净值", ["Starting Value"]],
+    ["markToMarket", "盯市变化", ["Mark-to-Market"]],
+    ["depositsAndWithdrawals", "出入金", ["Deposits & Withdrawals"]],
+    ["stockGrantActivity", "股票赠与", ["Stock Grant Activity"]],
+    ["dividends", "股息", ["Dividends"]],
+    ["withholdingTax", "代扣税款", ["Withholding Tax"]],
+    ["interest", "利息", ["Interest"]],
+    ["changeInInterestAccruals", "应计利息", ["Change in Interest Accruals"]],
+    ["changeInDividendAccruals", "应计股息变动", ["Change in Dividend Accruals"]],
+    ["otherFees", "其他费用", ["Other Fees"]],
+    ["commissions", "佣金", ["Commissions"]],
+    ["salesTax", "销售税", ["Sales Tax"]],
+    ["otherFXTranslations", "汇兑折算", ["Other FX Translations"]],
+    ["endingValue", "期末净值", ["Ending Value"]]
   ];
 
-  return fields.map(([key, label, source]) => ({
+  return fields.map(([key, label, sources]) => ({
     key,
     label,
-    value: toNumber(map.get(source))
+    value: toNumber(sources.map((source) => map.get(source)).find((value) => value !== undefined))
   }));
 }
 

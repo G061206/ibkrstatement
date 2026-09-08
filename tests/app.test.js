@@ -6,7 +6,7 @@ import { parseIbkrReport } from '../src/parser.js';
 import { isChineseIbkrReport } from '../src/reportLanguage.js';
 import { decodeReportFile } from '../src/encoding.js';
 import { translate } from '../src/i18n.js';
-import { account, stockRoundTrip, rates, forex, completeReport } from './fixtures.js';
+import { account, stockRoundTrip, rates, forex, completeReport, chineseReport } from './fixtures.js';
 
 // Exercise the actual render functions without adding a DOM dependency.
 // Browser checks cover real event handling and layout separately.
@@ -94,6 +94,17 @@ test('switching languages preserves report and filters; translates existing erro
   app.state.data = null;
   app.render();
   assert.match(app.root.innerHTML, /没有可解析的内容/);
+});
+
+test('Chinese Activity Statement uploads render the dashboard instead of an export-language error', () => {
+  const app = appHarness('zh');
+  app.parseText(chineseReport, '中文活动账单.csv');
+  assert.ok(app.state.data);
+  assert.equal(app.state.sourceName, '中文活动账单.csv');
+  assert.equal(app.state.activeTab, 'performance');
+  assert.equal(app.state.error, '');
+  assert.match(app.root.innerHTML, /已实现盈亏/);
+  assert.doesNotMatch(app.root.innerHTML, /请将 Language 设置为 English/);
 });
 
 test('invalid currency fails safely and leaves no injected HTML or stale report', () => {

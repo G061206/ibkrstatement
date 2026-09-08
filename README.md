@@ -89,16 +89,15 @@ IBKR Analytics Studio 是一个用于 Interactive Brokers Activity Statement 的
 
 ## 支持的数据来源
 
-推荐从 IBKR Client Portal 导出英文 Activity Statement：
+从 IBKR Client Portal 导出中文或英文 Activity Statement：
 
 1. 登录 IBKR Client Portal。
 2. 进入 Performance & Reports -> Statements。
 3. 选择 Activity Statement 并点击 Run。
-4. 将 Language 设置为 English。
-5. 将 Format 设置为 CSV。
-6. 下载文件后在本项目中上传或粘贴内容。
+4. 将 Format 设置为 CSV。
+5. 下载文件后在本项目中上传或粘贴内容。
 
-当前解析器主要面向英文 IBKR Activity Statement CSV。中文导出的报表字段名可能不同，项目会尝试检测并提示重新导出英文版本。
+解析器同时支持中文和英文 IBKR Activity Statement CSV，并会在读取时将中文区块名、列名和常用枚举值规范化到同一套数据模型。
 
 ## 已解析的主要区块
 

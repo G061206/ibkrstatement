@@ -1,7 +1,6 @@
-import { translate } from "./i18n.js?v=2.1.7";
-import { decodeReportFile } from "./encoding.js?v=2.1.7";
-import { isChineseIbkrReport } from "./reportLanguage.js?v=2.1.7";
-import { parseIbkrReport } from "./parser.js?v=2.1.7";
+import { translate } from "./i18n.js?v=2.1.8";
+import { decodeReportFile } from "./encoding.js?v=2.1.8";
+import { parseIbkrReport } from "./parser.js?v=2.1.8";
 
 const app = document.querySelector("#app");
 
@@ -35,7 +34,7 @@ const copy = {
     localOnly: "仅限本地处理",
     privacyBody: "文件只在当前浏览器中读取和解析，不上传服务器，不写入数据库。导出的 JSON 只包含汇总后的结构化结果。",
     dropTitle: "拖放 CSV 文件",
-    dropBody: "或点击从您的电脑中浏览。建议导出英文 Activity Statement。",
+    dropBody: "或点击从您的电脑中浏览。支持中文和英文 Activity Statement。",
     chooseFile: "选择文件",
     loadSample: "载入示例",
     pasteCsv: "或者粘贴 CSV 文本",
@@ -44,7 +43,7 @@ const copy = {
     guideStep1: "登录 IBKR Client Portal。",
     guideStep2: "进入 Performance & Reports → Statements。",
     guideStep3: "选择 Activity Statement 并点击 Run。",
-    guideStep4: "将语言设为 English，格式设为 CSV。",
+    guideStep4: "语言可选择中文或 English，格式设为 CSV。",
     guideStep5: "下载文件后回到这里上传或粘贴内容。",
     supportedSections: "支持的数据板块",
     localReport: "本地报表",
@@ -111,7 +110,7 @@ const copy = {
     localOnly: "Local processing only",
     privacyBody: "Files are read and parsed in this browser only. Nothing is uploaded or stored in a database. Exported JSON contains summarized structured results.",
     dropTitle: "Drop CSV file",
-    dropBody: "Or browse from your computer. English Activity Statement exports are recommended.",
+    dropBody: "Or browse from your computer. Chinese and English Activity Statements are supported.",
     chooseFile: "Choose file",
     loadSample: "Load sample",
     pasteCsv: "Or paste CSV text",
@@ -120,7 +119,7 @@ const copy = {
     guideStep1: "Log in to IBKR Client Portal.",
     guideStep2: "Go to Performance & Reports → Statements.",
     guideStep3: "Choose Activity Statement and click Run.",
-    guideStep4: "Set Language to English and Format to CSV.",
+    guideStep4: "Choose Chinese or English and set Format to CSV.",
     guideStep5: "Download the file, then upload or paste it here.",
     supportedSections: "Supported sections",
     localReport: "Local report",
@@ -1285,7 +1284,7 @@ async function readFile(file) {
 
 async function loadSample() {
   try {
-    const response = await fetch("./samples/ibkr-sample-demo.csv?v=2.1.7");
+    const response = await fetch("./samples/ibkr-sample-demo.csv?v=2.1.8");
     if (!response.ok) throw new Error("sample unavailable");
     parseText(await response.text(), "ibkr-sample-demo.csv");
   } catch (error) {
@@ -1306,12 +1305,6 @@ function parseText(text, sourceName) {
   const cleanText = String(text || "").trim();
   if (!cleanText) {
     state.error = "没有可解析的内容。";
-    renderUpload();
-    return;
-  }
-
-  if (isChineseIbkrReport(cleanText)) {
-    state.error = "检测到这份报表可能是中文导出。当前解析器主要支持英文 IBKR Activity Statement CSV，请将 Language 设置为 English 后重新导出。";
     renderUpload();
     return;
   }

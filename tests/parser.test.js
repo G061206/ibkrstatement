@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseIbkrReport } from '../src/parser.js';
-import { account, positionsHeader, tradesHeader, stockRoundTrip, rates, forex, plHeader, completeReport } from './fixtures.js';
+import { account, positionsHeader, tradesHeader, stockRoundTrip, rates, forex, plHeader, completeReport, chineseReport } from './fixtures.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-9, actual + ' != ' + expected);
 
@@ -131,6 +131,32 @@ test('complete synthetic report reconciles trade commission totals', () => {
   near(data.monthlySummary[0].net, 19.75);
   near(data.dailyTradeStats.reduce((sum, row) => sum + row.commissions, 0), 2.35);
   assert.deepEqual(data.warnings, []);
+});
+
+test('Chinese Activity Statement fields normalize into the existing analytics model', () => {
+  const data = parseIbkrReport(chineseReport);
+  assert.equal(data.accountInfo.account, 'U00000000');
+  assert.equal(data.accountInfo.name, '测试用户');
+  assert.equal(data.accountInfo.baseCurrency, 'USD');
+  assert.equal(data.accountInfo.period, 'January 2026');
+  near(data.nav.cash, 900);
+  near(data.nav.total, 2000);
+  near(data.nav.rateOfReturn, 10);
+  near(data.exchangeRates.HKD, 0.128);
+  assert.equal(data.positions.length, 1);
+  assert.equal(data.positions[0].symbol, 'ABC');
+  near(data.positions[0].baseDividends, 10);
+  assert.equal(data.tradeSummary.orderCount, 2);
+  near(data.tradeSummary.totalCommissions, 1.35);
+  near(data.tradeDetails[1].baseCommission, -0.35);
+  near(data.tradeDetails[1].baseMtmPL, 2.1);
+  near(data.plSummary.total.total, 118);
+  near(data.monthlySummary[0].net, 19.77);
+  assert.equal(data.navChange.find((row) => row.key === 'stockGrantActivity').value, 5);
+  assert.equal(data.navChange.find((row) => row.key === 'changeInDividendAccruals').value, 2);
+  assert.deepEqual(data.warnings, []);
+  assert.ok(data.sectionStats['Account Information'] > 0);
+  assert.ok(data.sectionStats.Trades > 0);
 });
 
 test('bundled reports still parse', () => {
