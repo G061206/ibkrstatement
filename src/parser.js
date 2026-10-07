@@ -153,6 +153,10 @@ function getRate(rates, currency) {
 
 export function parseIbkrReport(csvText) {
   const sections = collectSections(csvText);
+  return parseSections(sections);
+}
+
+function parseSections(sections) {
   const accountInfo = parseAccountInfo(sections);
   const exchangeRates = parseExchangeRates(sections, accountInfo.baseCurrency);
   const dividendIncome = parseDividendIncome(sections, exchangeRates);
@@ -198,6 +202,188 @@ export function parseIbkrReport(csvText) {
     warnings,
     generatedAt: new Date().toISOString()
   };
+}
+
+// Merge disjoint periods, retaining each statement's own conversion rates.
+// Summary rows cannot be safely prorated when reporting periods overlap.
+export function parseIbkrReports(sources) {
+  if (!sources?.length) throw new ReportError("emptyStatements");
+  const fingerprints = new Set();
+  const duplicates = [];
+  const statements = [];
+  for (const [index, source] of sources.entries()) {
+    const name = source.name || `statement-${index + 1}.csv`;
+    try {
+      const sections = collectSections(String(source.text || ""));
+      if (!Object.keys(sections).length) throw new ReportError("invalidStatement");
+      const fingerprint = JSON.stringify(Object.entries(sections).sort(([a], [b]) => a.localeCompare(b))
+        .map(([section, rows]) => [section, rows
+          .filter(row => section !== "Statement" || row["Field Name"] !== "WhenGenerated")
+          .map(row => Object.entries(row).slice(2).sort(([a], [b]) => a.localeCompare(b)))]));
+      if (fingerprints.has(fingerprint)) {
+        duplicates.push(name);
+        continue;
+      }
+      fingerprints.add(fingerprint);
+      statements.push({ name, sections, data: parseSections(sections) });
+    } catch (error) {
+      error.sourceName = name;
+      throw error;
+    }
+  }
+  const metadata = statement => ({
+    name: statement.name,
+    period: statement.data.accountInfo.period,
+    account: statement.data.accountInfo.account,
+    baseCurrency: statement.data.baseCurrency,
+    exchangeRates: statement.data.exchangeRates,
+    warnings: statement.data.warnings,
+    sectionStats: statement.data.sectionStats
+  });
+  if (statements.length === 1) {
+    return { ...statements[0].data, mergeInfo: {
+      statementCount: 1, sources: statements.map(metadata), duplicates
+    } };
+  }
+  const account = statements[0].data.accountInfo.account;
+  if (!account || statements.some(s => !s.data.accountInfo.account)) throw new ReportError("mergeMissingAccount");
+  if (statements.some(s => s.data.accountInfo.account !== account)) throw new ReportError("mergeAccountMismatch");
+  if (statements.some(s => !(s.sections["Account Information"] || [])
+    .some(row => row["Field Name"] === "Base Currency" && row["Field Value"]))) throw new ReportError("mergeMissingBaseCurrency");
+  if (statements.some(s => s.data.baseCurrency !== statements[0].data.baseCurrency)) throw new ReportError("mergeCurrencyMismatch");
+  for (const statement of statements) {
+    statement.range = parseStatementPeriod(statement.data.accountInfo.period);
+    if (!statement.range) {
+      const error = new ReportError("mergeInvalidPeriod");
+      error.sourceName = statement.name;
+      throw error;
+    }
+    for (const section of ["Trades", "Dividends", "Interest", "Fees", "Forex P/L Details", "Stock Yield Enhancement Program Securities Lent Interest Details"]) {
+      for (const row of statement.sections[section] || []) {
+        const date = parseDate(row["Date/Time"] || row.Date || row["Value Date"]);
+        if (!date) continue;
+        const day = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+        if (day < statement.range.start || day > statement.range.end) {
+          const error = new ReportError("mergeDateOutsidePeriod");
+          error.sourceName = statement.name;
+          throw error;
+        }
+      }
+    }
+  }
+  statements.sort((a, b) => a.range.start - b.range.start);
+  let hasGaps = false;
+  for (let index = 1; index < statements.length; index += 1) {
+    if (statements[index].range.start <= statements[index - 1].range.end) throw new ReportError("mergeOverlappingPeriods");
+    if (statements[index].range.start !== statements[index - 1].range.end + 86400000) hasGaps = true;
+  }
+  const first = statements[0];
+  const latest = statements.at(-1);
+  const reports = statements.map(s => s.data);
+  const sum = values => values.every(Number.isFinite) ? values.reduce((total, value) => total + value, 0) : null;
+  const aggregateRows = (rows, key, fields) => {
+    const grouped = new Map();
+    for (const row of rows) {
+      if (!grouped.has(row[key])) grouped.set(row[key], { ...row, ...Object.fromEntries(fields.map(field => [field, 0])) });
+      const target = grouped.get(row[key]);
+      for (const field of fields) target[field] += row[field];
+      if (row.symbols) target.symbols = [...new Set([...target.symbols, ...row.symbols])].sort();
+    }
+    return [...grouped.values()].sort((a, b) => a[key].localeCompare(b[key]));
+  };
+  const plSummary = Object.fromEntries(Object.keys(latest.data.plSummary).map(key => {
+    const realized = sum(reports.map(report => report.plSummary[key].realized));
+    const unrealized = latest.data.plSummary[key].unrealized;
+    return [key, { realized, unrealized, total: sum([realized, unrealized]) }];
+  }));
+  const dividendIncome = { bySymbol: {}, bySymbolBase: {}, total: sum(reports.map(r => r.dividendIncome.total)) };
+  for (const report of reports) {
+    for (const field of ["bySymbol", "bySymbolBase"]) {
+      for (const [symbol, value] of Object.entries(report.dividendIncome[field])) {
+        dividendIncome[field][symbol] = (dividendIncome[field][symbol] || 0) + value;
+      }
+    }
+  }
+  const closedMap = new Map();
+  for (const row of reports.flatMap(r => r.closedPositions)) {
+    const key = JSON.stringify([row.assetCategory, row.symbol]);
+    const prior = closedMap.get(key);
+    closedMap.set(key, { ...row, realizedPL: row.realizedPL + (prior?.realizedPL || 0),
+      closeDate: [prior?.closeDate || "", row.closeDate].sort().at(-1) });
+  }
+  const closedPositions = [...closedMap.values()];
+  const hasReturns = statements.every(s => (s.sections["Net Asset Value"] || [])
+    .some(row => {
+      const raw = row["Time Weighted Rate of Return"];
+      const numeric = raw?.replace(/[,%\s()]/g, "");
+      return numeric && Number.isFinite(Number(numeric));
+    }));
+  const rateOfReturn = !hasGaps && hasReturns
+    ? (reports.reduce((factor, r) => factor * (1 + r.nav.rateOfReturn / 100), 1) - 1) * 100 : null;
+  const warnings = [...new Set(reports.flatMap(r => r.warnings))];
+  if (hasGaps) warnings.push("mergePeriodGaps");
+  if (rateOfReturn === null) warnings.push("mergeReturnUnavailable");
+  const navChange = latest.data.navChange.map(row => ({ ...row, value:
+    row.key === "startingValue" ? first.data.navChange.find(item => item.key === row.key).value :
+      row.key === "endingValue" ? row.value : sum(reports.map(r => r.navChange.find(item => item.key === row.key).value))
+  }));
+  const tradeFields = ["orderCount", "stockOrders", "optionOrders", "forexOrders", "totalCommissions", "optionPremium", "realizedPL"];
+  const tradeDates = reports.flatMap(r => [r.tradeSummary.firstTradeDate, r.tradeSummary.lastTradeDate]).filter(Boolean).sort();
+  const tradeSummary = {
+    ...Object.fromEntries(tradeFields.map(field => [field, sum(reports.map(r => r.tradeSummary[field]))])),
+    firstTradeDate: tradeDates[0] || "", lastTradeDate: tradeDates.at(-1) || "",
+    topRealizedTrades: reports.flatMap(r => r.tradeSummary.topRealizedTrades)
+      .sort((a, b) => Math.abs(b.baseRealizedPL) - Math.abs(a.baseRealizedPL)).slice(0, 10)
+  };
+  const period = `${new Date(first.range.start).toISOString().slice(0, 10)} - ${new Date(latest.range.end).toISOString().slice(0, 10)}`;
+  return {
+    ...latest.data,
+    accountInfo: { ...latest.data.accountInfo, period },
+    nav: { ...latest.data.nav, rateOfReturn }, navChange, plSummary, dividendIncome,
+    positions: applyPositionDividends(latest.data.positions, dividendIncome), closedPositions,
+    tickerPL: analyzeTickerPL(closedPositions), tradeSummary,
+    tradeDetails: reports.flatMap(r => r.tradeDetails).sort((a, b) => a.dateTime.localeCompare(b.dateTime)),
+    dailyTradeStats: aggregateRows(reports.flatMap(r => r.dailyTradeStats), "date",
+      ["tradeCount", "realizedPL", "mtmPL", "grossTradeValue", "commissions"]).map(row => ({ ...row, symbolCount: row.symbols.length })),
+    monthlySummary: aggregateRows(reports.flatMap(r => r.monthlySummary), "month",
+      ["optionsPL", "optionsPremium", "stocksPL", "forexPL", "syepIncome", "interest", "commissions", "forexCommissions", "fees", "net"]),
+    sectionStats: Object.fromEntries([...new Set(reports.flatMap(r => Object.keys(r.sectionStats)))]
+      .map(section => [section, sum(reports.map(r => r.sectionStats[section] || 0))])),
+    warnings, generatedAt: new Date().toISOString(),
+    mergeInfo: { statementCount: statements.length, sources: statements.map(metadata), duplicates,
+      snapshotSource: latest.name, hasGaps }
+  };
+}
+
+function parseStatementPeriod(value) {
+  const text = String(value || "").trim();
+  const monthOnly = text.match(/^([A-Za-z]+)\s+(\d{4})$/);
+  const numericMonth = text.match(/^(\d{4})-(\d{2})$/);
+  const yearOnly = text.match(/^(\d{4})$/);
+  if (monthOnly || numericMonth || yearOnly) {
+    const year = Number(monthOnly?.[2] || numericMonth?.[1] || yearOnly[1]);
+    const month = monthOnly ? new Date(`${monthOnly[1]} 1, ${year} UTC`).getUTCMonth() : numericMonth ? Number(numericMonth[2]) - 1 : 0;
+    if (!Number.isInteger(month) || month < 0 || month > 11) return null;
+    return { start: Date.UTC(year, month, 1), end: Date.UTC(year, yearOnly ? 12 : month + 1, 0) };
+  }
+  const parts = text.split(/\s+(?:-|–|—|to)\s+|\s*至\s*/i);
+  if (parts.length > 2) return null;
+  const day = value => {
+    const normalized = value.replace(/(\d{4})年(\d{1,2})月(\d{1,2})日/, "$1-$2-$3");
+    const iso = normalized.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+    const us = normalized.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    const english = normalized.match(/^([A-Za-z]+) (\d{1,2}),? (\d{4})$/);
+    if (!iso && !us && !english) return null;
+    const year = Number(iso?.[1] || us?.[3] || english?.[3]);
+    const month = iso ? Number(iso[2]) - 1 : us ? Number(us[1]) - 1 : new Date(`${english[1]} 1, ${year} UTC`).getUTCMonth();
+    const date = Number(iso?.[3] || us?.[2] || english?.[2]);
+    const time = Date.UTC(year, month, date);
+    const result = new Date(time);
+    return result.getUTCFullYear() === year && result.getUTCMonth() === month && result.getUTCDate() === date ? time : null;
+  };
+  const start = day(parts[0]);
+  const end = day(parts.at(-1));
+  return start !== null && end !== null && start <= end ? { start, end } : null;
 }
 
 function collectSections(csvText) {

@@ -397,6 +397,54 @@ svg {
   line-height: 20px;
 }
 
+.statement-manager {
+  margin-bottom: 24px;
+}
+
+.statement-manager .card-header {
+  flex-wrap: wrap;
+}
+
+.statement-manager.is-dragging {
+  outline: 2px dashed var(--ink);
+}
+
+.statement-hint {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.statement-manager summary {
+  cursor: pointer;
+}
+
+.statement-list {
+  list-style: none;
+  padding: 0;
+}
+
+.statement-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.statement-list li div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.statement-list li span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
 .file-input {
   position: absolute;
   inline-size: 1px;

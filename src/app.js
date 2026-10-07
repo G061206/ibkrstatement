@@ -1,6 +1,6 @@
-import { translate } from "./i18n.js?v=2.1.8";
-import { decodeReportFile } from "./encoding.js?v=2.1.8";
-import { parseIbkrReport } from "./parser.js?v=2.1.8";
+import { translate } from "./i18n.js?v=2.2.0";
+import { decodeReportFile } from "./encoding.js?v=2.2.0";
+import { parseIbkrReports } from "./parser.js?v=2.2.0";
 
 const app = document.querySelector("#app");
 
@@ -33,8 +33,8 @@ const copy = {
     privacyLabel: "隐私说明",
     localOnly: "仅限本地处理",
     privacyBody: "文件只在当前浏览器中读取和解析，不上传服务器，不写入数据库。导出的 JSON 只包含汇总后的结构化结果。",
-    dropTitle: "拖放 CSV 文件",
-    dropBody: "或点击从您的电脑中浏览。支持中文和英文 Activity Statement。",
+    dropTitle: "拖放一份或多份 CSV/TXT 报表",
+    dropBody: "可一次选择同一账户的多个周期。支持中文和英文 Activity Statement。",
     chooseFile: "选择文件",
     loadSample: "载入示例",
     pasteCsv: "或者粘贴 CSV 文本",
@@ -109,8 +109,8 @@ const copy = {
     privacyLabel: "Privacy note",
     localOnly: "Local processing only",
     privacyBody: "Files are read and parsed in this browser only. Nothing is uploaded or stored in a database. Exported JSON contains summarized structured results.",
-    dropTitle: "Drop CSV file",
-    dropBody: "Or browse from your computer. Chinese and English Activity Statements are supported.",
+    dropTitle: "Drop one or more CSV/TXT statements",
+    dropBody: "Select multiple periods for the same account. Chinese and English Activity Statements are supported.",
     chooseFile: "Choose file",
     loadSample: "Load sample",
     pasteCsv: "Or paste CSV text",
@@ -211,6 +211,9 @@ const state = {
   error: "",
   search: "",
   sourceName: "",
+  sources: [],
+  importing: false,
+  importRevision: 0,
   dailyMonth: "",
   autoSampleStarted: false,
   shareOpen: false,
@@ -263,14 +266,14 @@ function renderUpload() {
         <section class="upload-grid">
           <div class="upload-stack">
             <label class="dropzone" id="dropzone" for="fileInput">
-              <input class="file-input" id="fileInput" type="file" accept=".csv,.txt,text/csv,text/plain" />
+              <input class="file-input" id="fileInput" type="file" multiple accept=".csv,.txt,text/csv,text/plain" ${state.importing ? "disabled" : ""} />
               <span class="dropzone-icon" aria-hidden="true">${icon("upload")}</span>
               <span>
                 <h2>${t("dropTitle")}</h2>
                 <p>${t("dropBody")}</p>
                 <span class="button-row">
-                  <span class="primary-button" id="chooseFileButton">${icon("upload")}${t("chooseFile")}</span>
-                  <button class="secondary-button" id="sampleButton" type="button">${icon("database")}${t("loadSample")}</button>
+                  <span class="primary-button" id="chooseFileButton">${icon("upload")}${state.importing ? tr("正在读取报表…") : t("chooseFile")}</span>
+                  <button class="secondary-button" id="sampleButton" type="button" ${state.importing ? "disabled" : ""}>${icon("database")}${t("loadSample")}</button>
                 </span>
               </span>
             </label>
@@ -282,12 +285,16 @@ function renderUpload() {
               <div class="paste-body">
                 <textarea id="pasteInput" placeholder="Statement,Header,..."></textarea>
                 <div class="button-row">
-                  <button class="secondary-button" id="parseTextButton" type="button">${icon("chart")}${t("parseText")}</button>
+                  <button class="secondary-button" id="parseTextButton" type="button" ${state.importing ? "disabled" : ""}>${icon("chart")}${t("parseText")}</button>
                 </div>
               </div>
             </details>
           </div>
           <aside class="side-stack">
+            <section class="info-card">
+              <h3>${icon("database")}${tr("多报表合并")}</h3>
+              <p>${tr("同一账户、相同基础货币、互不重叠的周期可合并；重复报表自动跳过。持仓和净值取最新报表，交易与收入按周期累计。")}</p>
+            </section>
             <section class="info-card">
               <h3>${icon("help")}${t("exportGuide")}</h3>
               <ol>
@@ -336,6 +343,8 @@ function renderDashboard() {
           </div>
         </header>
         <section class="dashboard-content">
+          ${state.error ? `<div class="error-banner" role="alert">${escapeHtml(displayError(state.error))}</div>` : ""}
+          ${renderStatementManager()}
           ${renderActiveTab()}
         </section>
         ${state.shareOpen ? renderShareDialog() : ""}
@@ -349,11 +358,33 @@ function renderDashboard() {
   }
 }
 
+function renderStatementManager() {
+  const info = state.data.mergeInfo;
+  if (!info) return "";
+  return `<section class="dashboard-card statement-manager" id="statementDropzone">
+    <div class="card-header">
+      <h2>${tr("报表管理")} <span class="pill">${formatNumber(info.statementCount)}</span></h2>
+      <button class="secondary-button" id="addStatementsButton" type="button" ${state.importing ? "disabled" : ""}>${icon("upload")}${state.importing ? tr("正在读取报表…") : tr("追加报表")}</button>
+      <input class="file-input" id="addStatementsInput" type="file" multiple accept=".csv,.txt,text/csv,text/plain" ${state.importing ? "disabled" : ""} />
+    </div>
+    <p class="statement-hint">${tr("可拖入更多报表。交易与收入累计，持仓及净值取最新周期；基础货币汇率表显示最新报表汇率。")}</p>
+    <details><summary>${tr("查看来源报表")}</summary>
+      <ul class="statement-list">${info.sources.map(source => `<li>
+        <div><strong>${escapeHtml(source.name)}</strong><span>${escapeHtml(source.period || t("unknownPeriod"))}</span></div>
+        <button class="secondary-button" type="button" data-remove-statement="${state.sources.findIndex(item => item.name === source.name)}" ${state.importing ? "disabled" : ""}>${tr("移除")}</button>
+      </li>`).join("")}</ul>
+      ${info.duplicates.length ? `<p class="statement-hint">${tr("已跳过重复报表：")}${escapeHtml(info.duplicates.join(", "))}</p>` : ""}
+      ${info.sources.map(source => `<p class="statement-hint">${escapeHtml(source.name)} · ${tr("汇率")}：${escapeHtml(Object.entries(source.exchangeRates).map(([currency, rate]) => `${currency} ${rate}`).join(" / "))}</p>`).join("")}
+    </details>
+    ${info.hasGaps ? `<p class="statement-hint">${escapeHtml(displayWarning("mergePeriodGaps"))}</p>` : ""}
+  </section>`;
+}
+
 function renderSideNav() {
   return `
     <aside class="side-nav">
       <div class="side-brand">
-        ${renderBrand("IBKR Analytics", "Version 2.1")}
+        ${renderBrand("IBKR Analytics", "Version 2.2")}
       </div>
       <nav class="side-nav-list" aria-label="${t("reportNav")}">
         ${tabs.map((tab) => renderNavButton(tab)).join("")}
@@ -1130,8 +1161,7 @@ function bindUploadEvents() {
   });
 
   fileInput?.addEventListener("change", () => {
-    const file = fileInput.files?.[0];
-    if (file) readFile(file);
+    if (fileInput.files?.length) readFiles([...fileInput.files]);
   });
 
   dropzone?.addEventListener("dragover", (event) => {
@@ -1146,8 +1176,7 @@ function bindUploadEvents() {
   dropzone?.addEventListener("drop", (event) => {
     event.preventDefault();
     dropzone.classList.remove("is-dragging");
-    const file = event.dataTransfer?.files?.[0];
-    if (file) readFile(file);
+    if (event.dataTransfer?.files?.length) readFiles([...event.dataTransfer.files]);
   });
 
   parseTextButton?.addEventListener("click", () => {
@@ -1164,6 +1193,25 @@ function bindUploadEvents() {
 function bindDashboardEvents() {
   bindThemeToggle();
   bindLanguageSwitch();
+  const addInput = document.querySelector("#addStatementsInput");
+  document.querySelector("#addStatementsButton")?.addEventListener("click", () => addInput?.click());
+  addInput?.addEventListener("change", () => {
+    if (addInput.files?.length) readFiles([...addInput.files], true);
+  });
+  const dropzone = document.querySelector("#statementDropzone");
+  dropzone?.addEventListener("dragover", event => {
+    event.preventDefault();
+    dropzone.classList.add("is-dragging");
+  });
+  dropzone?.addEventListener("dragleave", () => dropzone.classList.remove("is-dragging"));
+  dropzone?.addEventListener("drop", event => {
+    event.preventDefault();
+    dropzone.classList.remove("is-dragging");
+    if (event.dataTransfer?.files?.length) readFiles([...event.dataTransfer.files], true);
+  });
+  document.querySelectorAll("[data-remove-statement]").forEach(button => {
+    button.addEventListener("click", () => removeStatement(Number(button.dataset.removeStatement)));
+  });
 
   document.querySelectorAll(".tab-button").forEach((button) => {
     button.addEventListener("click", () => {
@@ -1262,8 +1310,21 @@ function tr(text) {
 }
 
 function displayError(error) {
+  if (error?.sourceName) return error.sourceName + ": " + displayError({ ...error, sourceName: "" });
   if (error?.code === "invalidCurrency") return tr("报表包含无效币种代码。请检查 Base Currency、Currency 和佣金/MTM 列标题。");
   if (error?.code === "missingExchangeRate") return tr("缺少基础货币换算汇率：") + error.currency + tr("。请在报表中包含 Base Currency Exchange Rate 或 MTM 外汇汇率后重新导入。");
+  const mergeErrors = {
+    emptyStatements: "没有可解析的内容。",
+    invalidStatement: "解析失败。请确认文件是 IBKR Activity Statement CSV/TXT，且包含 Header/Data 结构。",
+    mergeMissingAccount: "合并需要每份报表包含账户编号。请补充 Account Information 后重试。",
+    mergeAccountMismatch: "只能合并同一账户的报表。请选择账户编号一致的 Statement。",
+    mergeCurrencyMismatch: "报表基础货币不一致，无法合并。请导出相同基础货币的报表。",
+    mergeMissingBaseCurrency: "合并需要每份报表明确提供基础货币。请补充 Base Currency 后重试。",
+    mergeInvalidPeriod: "无法识别报表周期，无法确定合并顺序。请包含有效的 Statement Period。",
+    mergeOverlappingPeriods: "报表周期重叠，无法安全累计盈亏。请移除重叠报表，或重新导出互不重叠的周期。",
+    mergeDateOutsidePeriod: "报表明细日期超出声明周期。请检查 Statement Period 和明细日期。"
+  };
+  if (mergeErrors[error?.code]) return tr(mergeErrors[error.code]);
   return tr(String(error || ""));
 }
 
@@ -1271,23 +1332,42 @@ function t(key) {
   return copy[state.language]?.[key] || copy.zh[key] || key;
 }
 
-async function readFile(file) {
+async function readFiles(files, append = false) {
+  if (!files.length || state.importing) return;
+  const revision = ++state.importRevision;
+  state.importing = true;
+  state.error = "";
+  render();
   try {
-    const buffer = await file.arrayBuffer();
-    const decoded = decodeReportFile(buffer);
-    parseText(decoded.text, file.name);
+    const sources = await Promise.all(files.map(async file => ({
+      text: decodeReportFile(await file.arrayBuffer()).text, name: file.name
+    })));
+    if (revision !== state.importRevision) return;
+    state.importing = false;
+    importSources(sources, append);
   } catch (error) {
+    if (revision !== state.importRevision) return;
+    state.importing = false;
     state.error = "读取文件失败，请重新选择报表。";
-    renderUpload();
+    render();
   }
 }
 
 async function loadSample() {
+  if (state.importing) return;
+  const revision = ++state.importRevision;
+  state.importing = true;
+  render();
   try {
-    const response = await fetch("./samples/ibkr-sample-demo.csv?v=2.1.8");
+    const response = await fetch("./samples/ibkr-sample-demo.csv?v=2.2.0");
     if (!response.ok) throw new Error("sample unavailable");
-    parseText(await response.text(), "ibkr-sample-demo.csv");
+    const text = await response.text();
+    if (revision !== state.importRevision) return;
+    state.importing = false;
+    parseText(text, "ibkr-sample-demo.csv");
   } catch (error) {
+    if (revision !== state.importRevision) return;
+    state.importing = false;
     state.error = "示例文件读取失败，请确认通过本地服务打开项目。";
     renderUpload();
   }
@@ -1309,30 +1389,60 @@ function parseText(text, sourceName) {
     return;
   }
 
+  importSources([{ text: cleanText, name: sourceName || "pasted-report.csv" }]);
+}
+
+function importSources(sources, append = false) {
   try {
-    const parsed = parseIbkrReport(cleanText);
-    if (!Object.keys(parsed.sectionStats).length) {
-      throw new Error("No recognizable sections");
-    }
+    const combined = append ? [...state.sources, ...sources] : sources;
+    // Unique internal names keep removal unambiguous even for identical filenames.
+    const names = new Set();
+    const named = combined.map(source => {
+      let name = source.name;
+      let suffix = 2;
+      while (names.has(name)) name = `${source.name} (${suffix++})`;
+      names.add(name);
+      return { ...source, name };
+    });
+    const parsed = parseIbkrReports(named);
     state.data = parsed;
-    state.sourceName = sourceName || "";
+    const retained = new Set(parsed.mergeInfo.sources.map(source => source.name));
+    state.sources = named.filter(source => retained.has(source.name));
+    state.sourceName = parsed.mergeInfo.sources.map(source => source.name).join(", ");
     state.search = "";
     state.error = "";
-    state.activeTab = "performance";
+    state.dailyMonth = "";
+    if (!append) state.activeTab = "performance";
     state.shareOpen = new URLSearchParams(window.location.search).get("share") === "1";
     renderDashboard();
   } catch (error) {
-    state.data = null;
-    state.error = error.code ? { code: error.code, currency: error.currency } : "解析失败。请确认文件是 IBKR Activity Statement CSV/TXT，且包含 Header/Data 结构。";
-    renderUpload();
+    if (!append) {
+      state.data = null;
+      state.sources = [];
+      state.sourceName = "";
+    }
+    state.error = error.code ? { code: error.code, currency: error.currency, sourceName: error.sourceName } : "解析失败。请确认文件是 IBKR Activity Statement CSV/TXT，且包含 Header/Data 结构。";
+    render();
   }
 }
 
+function removeStatement(index) {
+  if (state.importing || !Number.isInteger(index) || index < 0 || index >= state.sources.length) return;
+  const remaining = state.sources.filter((_, sourceIndex) => sourceIndex !== index);
+  if (!remaining.length) resetReport();
+  else importSources(remaining);
+}
+
 function resetReport() {
+  state.importRevision += 1;
+  state.importing = false;
   state.data = null;
   state.error = "";
   state.search = "";
   state.sourceName = "";
+  state.sources = [];
+  state.dailyMonth = "";
+  state.shareOpen = false;
   renderUpload();
 }
 
@@ -1995,7 +2105,9 @@ function displayWarning(warning) {
     missingPositions: tr("未找到 Open Positions 区块。"),
     missingPlSummary: tr("未找到 Realized & Unrealized Performance Summary 区块。"),
     missingPlTotal: tr("缺少盈亏总计行。"),
-    sparseReport: tr("文件结构不像标准 IBKR Activity Statement CSV。")
+    sparseReport: tr("文件结构不像标准 IBKR Activity Statement CSV。"),
+    mergePeriodGaps: tr("报表周期之间存在空档，累计结果仅覆盖已导入周期。"),
+    mergeReturnUnavailable: tr("周期不连续或缺少收益率，合并时间加权收益显示为 —。")
   };
   return labels[warning] || warning;
 }
